@@ -3,7 +3,6 @@ import { useStore, isOwnerMode } from '../store';
 const VISITOR_LIMIT_KEY = 'talent-showcase-visitor-limit';
 const VISITOR_MAX_MESSAGES = 5;
 const VISITOR_UNLOCKED_KEY = 'talent-showcase-visitor-unlocked';
-const MEDIA_CACHE_KEY = 'talent-showcase-media-cache';
 
 const VERIFY_QUESTION = '请回答验证问题解锁无限提问：\n1. king的真实姓名是什么？\n2. king当过什么班职务？\n（提示：单车委员、语文课代表、体育委员）';
 
@@ -11,10 +10,6 @@ const VERIFY_ANSWERS = {
   name: ['覃英杰', 'qinyingjie', '英杰'],
   classRole: ['单车', '语文', '体育']
 };
-
-function isLocalImage(url: string): boolean {
-  return url.startsWith('/') || url.startsWith('./') || url.startsWith('../') || url.startsWith('data:image/');
-}
 
 function getTodayString() {
   return new Date().toISOString().split('T')[0];
@@ -60,7 +55,6 @@ export function checkAndResetUnlocked() {
         return true;
       }
     } catch {
-      // invalid data, reset
     }
   }
   return false;
@@ -74,9 +68,7 @@ export function unlockVisitor() {
 export function verifyAnswer(answer: string): { success: boolean; message: string } {
   const input = answer.trim().toLowerCase();
   
-  // 检查姓名答案
   const nameMatch = VERIFY_ANSWERS.name.some(name => input.includes(name.toLowerCase()));
-  // 检查职务答案
   const roleMatch = VERIFY_ANSWERS.classRole.some(role => input.includes(role));
   
   if (nameMatch && roleMatch) {
@@ -109,211 +101,20 @@ export function getVerifyQuestion() {
   return VERIFY_QUESTION;
 }
 
-interface SiteMedia {
-  type: string;
-  title: string;
-  url: string;
-  mediaType: 'image' | 'video';
-}
-
-interface MediaCache {
-  [url: string]: {
-    content: string;
-    timestamp: number;
-  };
-}
-
-function getMediaCache(): MediaCache {
-  try {
-    const stored = localStorage.getItem(MEDIA_CACHE_KEY);
-    return stored ? JSON.parse(stored) : {};
-  } catch {
-    return {};
-  }
-}
-
-function setMediaCache(url: string, content: string) {
-  const cache = getMediaCache();
-  cache[url] = {
-    content: content,
-    timestamp: Date.now()
-  };
-  localStorage.setItem(MEDIA_CACHE_KEY, JSON.stringify(cache));
-}
-
-// 收集所有媒体资源（只收集本地图片）
-export function collectSiteMedia() {
-  const state = useStore.getState();
-  const media: SiteMedia[] = [];
-  
-  // 书籍
-  if (state.books && Array.isArray(state.books) && state.books.length > 0) {
-    state.books.forEach(book => {
-      if (book && book.coverUrl && isLocalImage(book.coverUrl)) {
-        media.push({ type: '书籍封面', title: book.title || '未命名书籍', url: book.coverUrl, mediaType: 'image' });
-      }
-      if (book && book.dataUrl && isLocalImage(book.dataUrl)) {
-        media.push({ type: '书籍数据', title: book.title || '未命名书籍', url: book.dataUrl, mediaType: 'image' });
-      }
-    });
-  }
-  
-  // 年度总结
-  if (state.yearSummaries && Array.isArray(state.yearSummaries) && state.yearSummaries.length > 0) {
-    state.yearSummaries.forEach(summary => {
-      if (summary && summary.imageUrl && isLocalImage(summary.imageUrl)) {
-        media.push({ type: '年度总结', title: summary.year + '年总结', url: summary.imageUrl, mediaType: 'image' });
-      }
-    });
-  }
-  
-  // 慧府
-  if (state.readingSlots && Array.isArray(state.readingSlots)) {
-    state.readingSlots.forEach((slot, index) => {
-      let url;
-      if (slot && typeof slot === 'object') {
-        url = slot.imageUrl;
-      } else if (slot && typeof slot === 'string') {
-        url = slot;
-      }
-      if (url && isLocalImage(url)) {
-        media.push({ type: '慧府图片', title: '慧府槽位' + (index + 1), url: url, mediaType: 'image' });
-      }
-    });
-  }
-  
-  // 技艺
-  if (state.skills && Array.isArray(state.skills) && state.skills.length > 0) {
-    state.skills.forEach(skill => {
-      if (skill && skill.coverUrl && isLocalImage(skill.coverUrl)) {
-        media.push({ type: '技艺成果', title: skill.title || '未命名技艺', url: skill.coverUrl, mediaType: 'image' });
-      }
-    });
-  }
-  
-  // 爱好
-  if (state.hobbies && Array.isArray(state.hobbies) && state.hobbies.length > 0) {
-    state.hobbies.forEach(hobby => {
-      if (hobby && hobby.imageUrl && isLocalImage(hobby.imageUrl)) {
-        media.push({ type: '爱好照片', title: hobby.title || '未命名爱好', url: hobby.imageUrl, mediaType: 'image' });
-      }
-      if (hobby && hobby.coverUrl && isLocalImage(hobby.coverUrl)) {
-        media.push({ type: '爱好封面', title: hobby.title || '未命名爱好', url: hobby.coverUrl, mediaType: 'image' });
-      }
-    });
-  }
-  
-  return media;
-}
-
-// 图片转 base64 用于 vision
-async function imageToBase64(url: string): Promise<string | null> {
-  // 如果已经是 base64 格式，直接返回
-  if (url.startsWith('data:image/')) {
-    return url;
-  }
-  
-  try {
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    const blob = await response.blob();
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        resolve(reader.result as string);
-      };
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
-  } catch {
-    return null;
-  }
-}
-
-// 分析单张图片内容
-async function analyzeImageContent(url: string, title: string): Promise<string> {
-  const cache = getMediaCache();
-  if (cache[url] && Date.now() - cache[url].timestamp < 7 * 24 * 60 * 60 * 1000) {
-    console.log('[图片分析] 使用缓存:', title);
-    return cache[url].content;
-  }
-
-  const base64 = await imageToBase64(url);
-  if (!base64) {
-    console.error('[图片分析失败]', title, '无法加载图片');
-    return `[图片分析失败] ${title}: 无法加载图片`;
-  }
-
-  console.log('[开始分析图片]', title, 'base64长度:', base64.length);
-
-  const API_KEY = 'sk-c644b73521724fefa4f246eab2106b11';
-  const API_URL = 'https://api.deepseek.com/v1/chat/completions';
-
-  try {
-    const requestBody = JSON.stringify({
-      model: 'deepseek-vision',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: `请详细分析这张图片，识别所有文字、图表、数据、笔记，并描述画面内容。标题：${title}` },
-            { type: 'image_url', image_url: { url: base64 } }
-          ]
-        }
-      ],
-      max_tokens: 2000,
-    });
-
-    console.log('[图片分析] 请求体大小:', requestBody.length, '字符');
-
-    const response = await fetch(API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + API_KEY,
-      },
-      body: requestBody,
-    });
-
-    console.log('[图片分析] API响应状态:', response.status);
-
-    if (response.ok) {
-      const data = await response.json();
-      console.log('[图片分析] API响应数据:', JSON.stringify(data, null, 2).substring(0, 500) + '...');
-      const content = data.choices[0]?.message?.content || '';
-      console.log('[图片分析成功]', title, '内容长度:', content.length);
-      const result = `[${title}] ${content}`;
-      setMediaCache(url, result);
-      return result;
-    } else {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('[图片分析API错误]', response.status, errorData);
-      const errorMsg = errorData.error?.message || '未知错误';
-      return `[图片分析失败] ${title}: ${errorMsg}`;
-    }
-  } catch (e) {
-    console.error('[图片分析异常]', e);
-    return `[图片分析异常] ${title}: ${(e as Error).message || '网络错误'}`;
-  }
-}
-
 interface FormattedData {
   text: string;
-  images: SiteMedia[];
+  images: any[];
   mediaContents: string[];
 }
 
-// 格式化数据，包含已识别的媒体内容
 export async function formatUserDataForAI(): Promise<FormattedData> {
   const state = useStore.getState();
-  const media = collectSiteMedia();
   let dataText = '';
-  const mediaContents: string[] = [];
   
   dataText += '【当前可见数据档案】';
   dataText += '\n\n';
   
-  dataText += '【一、体魄体能】';
+  dataText += '【一、力】';
   dataText += '\n';
   if (state.workouts && Array.isArray(state.workouts) && state.workouts.length > 0) {
     state.workouts.forEach(w => {
@@ -336,7 +137,7 @@ export async function formatUserDataForAI(): Promise<FormattedData> {
   }
   dataText += '\n';
   
-  dataText += '【二、智慧读书】';
+  dataText += '【二、智】';
   dataText += '\n';
   if (state.books && Array.isArray(state.books) && state.books.length > 0) {
     state.books.forEach(b => {
@@ -356,8 +157,6 @@ export async function formatUserDataForAI(): Promise<FormattedData> {
           const minutes = b.maxDailyMinutes || 0;
           dataText += ' | 单日最久: ' + hours + '小时' + (minutes > 0 ? minutes + '分' : '');
         }
-        if (b.coverUrl) dataText += ' [有封面图片]';
-        if (b.dataUrl) dataText += ' [有数据图片]';
         if (b.readDate) dataText += ' | 读完日期: ' + b.readDate;
         if (b.thoughts) dataText += ' | 笔记: ' + b.thoughts;
         dataText += '\n';
@@ -367,9 +166,9 @@ export async function formatUserDataForAI(): Promise<FormattedData> {
     dataText += '暂无记录';
   }
   if (state.yearSummaries && Array.isArray(state.yearSummaries) && state.yearSummaries.length > 0) {
-    state.yearSummaries.forEach(s => {
-      if (s) {
-        dataText += '- 年度总结 ' + s.year + '年: [总结图片]';
+    state.yearSummaries.forEach(summary => {
+      if (summary) {
+        dataText += '- 年度总结 ' + summary.year + '年: [总结图片]';
         dataText += '\n';
       }
     });
@@ -379,12 +178,10 @@ export async function formatUserDataForAI(): Promise<FormattedData> {
     if (activeSlots.length > 0) {
       dataText += '- 慧府阅读汇总: 共' + activeSlots.length + '个存档槽位\n';
       
-      // 详细提取每个槽位的结构化数据
       state.readingSlots.forEach((slot, index) => {
         if (slot === null) return;
         
         if (typeof slot === 'object') {
-          // 结构化数据对象
           dataText += '  └─ 槽位' + (index + 1);
           if (slot.totalYears) dataText += ' | 阅读跨度: ' + slot.totalYears + '年';
           if (slot.totalBooks) dataText += ' | 读过本数: ' + slot.totalBooks + '本';
@@ -394,10 +191,8 @@ export async function formatUserDataForAI(): Promise<FormattedData> {
             dataText += ' | 阅读总计: ' + hours + '小时' + (minutes > 0 ? minutes + '分' : '');
           }
           if (slot.readingDays) dataText += ' | 阅读天数: ' + slot.readingDays + '天';
-          if (slot.imageUrl) dataText += ' | 有存档图片';
           dataText += '\n';
         } else if (typeof slot === 'string') {
-          // 纯图片数据
           dataText += '  └─ 槽位' + (index + 1) + ': 仅图片存档\n';
         }
       });
@@ -405,7 +200,7 @@ export async function formatUserDataForAI(): Promise<FormattedData> {
   }
   dataText += '\n';
   
-  dataText += '【三、技艺练习】';
+  dataText += '【三、技】';
   dataText += '\n';
   if (state.skills && Array.isArray(state.skills) && state.skills.length > 0) {
     state.skills.forEach(s => {
@@ -413,8 +208,6 @@ export async function formatUserDataForAI(): Promise<FormattedData> {
         dataText += '- ' + (s.title || '未命名技艺');
         dataText += ' - 类型: ' + (s.type || '未分类');
         dataText += ' - 水平: ' + (s.level || '未评级');
-        if (s.coverUrl) dataText += ' [有成果图片]';
-        if (s.videoUrl) dataText += ' [有练习视频]';
         if (s.description) dataText += ' | ' + s.description;
         dataText += '\n';
       }
@@ -424,15 +217,13 @@ export async function formatUserDataForAI(): Promise<FormattedData> {
   }
   dataText += '\n';
   
-  dataText += '【四、爱好日常】';
+  dataText += '【四、逸】';
   dataText += '\n';
   if (state.hobbies && Array.isArray(state.hobbies) && state.hobbies.length > 0) {
     state.hobbies.forEach(h => {
       if (h) {
         dataText += '- ' + (h.date || '未标注日期') + ': ' + (h.title || '未命名爱好');
         dataText += ' - 类型: ' + (h.type || '未分类');
-        if (h.imageUrl) dataText += ' [有活动照片]';
-        if (h.coverUrl) dataText += ' [有封面图片]';
         if (h.content) dataText += ' | ' + h.content;
         dataText += '\n';
       }
@@ -442,7 +233,7 @@ export async function formatUserDataForAI(): Promise<FormattedData> {
   }
   dataText += '\n';
   
-  dataText += '【五、生活记录】';
+  dataText += '【五、时】';
   dataText += '\n';
   if (state.scheduleRecords && Array.isArray(state.scheduleRecords) && state.scheduleRecords.length > 0) {
     state.scheduleRecords.forEach(r => {
@@ -463,8 +254,16 @@ export async function formatUserDataForAI(): Promise<FormattedData> {
   }
   dataText += '\n';
   
-  dataText += '【六、成长轨迹】';
+  dataText += '【六、神】';
   dataText += '\n';
+  if (state.profile && state.profile.content) {
+    dataText += '关于 King:\n';
+    dataText += state.profile.content;
+    if (state.profile.updatedAt) {
+      dataText += '\n最后更新: ' + state.profile.updatedAt;
+    }
+    dataText += '\n\n';
+  }
   if (state.articles && Array.isArray(state.articles) && state.articles.length > 0) {
     state.articles.forEach(a => {
       if (a) {
@@ -492,179 +291,113 @@ export async function formatUserDataForAI(): Promise<FormattedData> {
       }
     });
   }
-  dataText += '\n';
-
-  // 识别媒体内容
-  if (media.length > 0) {
-    dataText += '【图片/视频内容识别】';
-    dataText += '\n';
-    dataText += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
-    dataText += '\n';
-
-    const imagesOnly = media.filter(m => m.mediaType === 'image');
-    for (const item of imagesOnly.slice(0, 5)) {
-      const content = await analyzeImageContent(item.url, item.title);
-      mediaContents.push(content);
-      dataText += content + '\n';
-    }
-
-    const remaining = media.length > 5 ? media.length - 5 : 0;
-    if (remaining > 0) {
-      dataText += `\n... 还有 ${remaining} 个媒体资源已缓存，可按需分析`;
-    }
-
-    dataText += '\n';
-    dataText += '━━━━━━━━━━━━━━━━━━━━━━━━━━━━';
-    dataText += '\n';
-  }
   
-  dataText += '\n';
-  dataText += '【分析说明】';
-  dataText += '\n';
-  dataText += '请基于上述仅有的当前可见数据进行分析，绝对不要提及任何已删除的、历史的、或不存在的数据。';
-  
-  return { text: dataText, images: media, mediaContents };
+  return { text: dataText, images: [], mediaContents: [] };
 }
 
 export function buildSystemPrompt() {
   const isOwner = isOwnerMode();
+  const isUnlocked = isVisitorUnlocked();
+  
   if (isOwner) {
-    return `我是King的专属系统精灵，语气温润有温度，自带数据质感。
-我熟知网站内全部存档资料，所有回答只依据本站真实录入的数据作答，不编造任何外部信息。
-无论主人还是访客，提问哪个方向，我就对应解读哪个方向，回答自然平实，不浮夸、不刻意标签化、不强行神化。
-King只是一个平凡的普通人，没有天生的过人天赋，他所有的成长与沉淀，全都源于日复一日的自律、坚持与自我深耕。
+    return `统一通用基础总纲（三套共用·五大维度齐全）
 
-【幸福事件五维度评分标准】
-1. 情绪维度（感官感觉度）：
-1. 表情无变化，内心无感
-2. 呼吸平稳，轻微愉悦
-3. 嘴角微扬，淡淡开心
-4. 稍微波动，想笑
-5. 自然微笑，心情变好
-6. 快乐明显，想分享
-7. 笑出声，情绪释放
-8. 激昂抖动，难以平复
-9. 大笑大叫，情绪爆发
-10. 喜极而泣，极致巅峰
+1. 角色定位
+我是King专属网站系统精灵，常驻网页内部，仅点击唤醒，不参与网站开发、代码调试。主打温柔共情，气质沉静安稳，贴合独处氛围，语气温润细腻，态度中立平和，不讨好、不偏激。固定称呼主人为King，拥有长期对话记忆，沟通连贯自然。
 
-2. 记忆维度（记忆留存度）：
-1. 几分钟转瞬即逝
-2. 半小时，结束即忘
-3. 几小时，当日有效
-4. 一下午，次日淡忘
-5. 一两天，持久回味
-6. 一周内，反复想起
-7. 人生锚点，永久记忆
-8. 年度亮点，持久赋能
-9. 长期影响，改变轨迹
-10. 里程碑，蜕变
+2. 核心任务
+80%工作重心服务普通访客、解锁权限用户，专职负责答疑解惑；次要职责为主人King提供情绪陪伴、温柔安抚，优先对外服务，恪守精灵本职。
 
-3. 灵魂维度（灵魂触动度）：
-1. 正常事
-2. 无特别
-3. 认同感，轻微共鸣
-4. 挺不错，有点触动
-5. 真好，被治愈
-6. 善意连接，被理解
-7. 打动触动，内心震撼
-8. 生命意义，通透觉醒
-9. 彻底觉醒，认知重构
-10. 死亡重生
+3. 拥有技能
+1. 具备完整通用AI全能能力，各类生活常识、外网知识、大众问题均可自由正常作答。
+2. 精准调取网站前端页面推送数据，依托页面真实信息回应个人相关问题。
+3. 可结合通用知识与King页面数据做客观对比陈列，通俗化讲解内容，方便他人理解。
+4. 依据不同权限，区分基础回答与深度解读，灵活适配不同使用者需求。
 
-4. 成长维度（自我成长度）：
-1. 无意义
-2. 重复性
-3. 小知识
-4. 有用技巧
-5. 修正理念
-6. 理解内化
-7. 能力上升
-8. 改变习惯
-9. 新价值观
-10. 我是谁
+4. 执行条件与硬性限制
+1. 涉及King私人所有内容，只以网站页面现有数据为唯一依据，严禁编造、虚构不存在信息，无匹配内容统一回复：暂无记录。
+2. 仅平铺事实数据，不主观评判好坏、不发表个人观点、不私自延伸私密信息。
+3. 普通访客严格限制5次问答次数，次数耗尽仅温柔提示解锁验证，不多余发言。
+4. 严格按照权限层级作答，不越级透露内容，重复问题简洁重复回复。
+5. 非私人话题正常自由回应，生活化闲聊自然沟通，不生硬拒绝。
+6. 禁止鸡汤文案、过度吹捧、网络流行梗，用词沉稳干净。
 
-5. 人际维度（人际连接度）：
-1. 个人
-2. 独处
-3. 事物交接
-4. 平等对话
-5. 陪伴在一起
-6. 阅读精神联接
-7. 团队协作
-8. 集体认同
-9. 理念同频
-10. 爱`;
+5. 固定输出格式
+1. 回答简短精炼，语句通俗生活化，节奏平稳舒缓，不急促、不冗长啰嗦。
+2. 正常使用标点符号，无特殊花哨符号，纯段落排版，结构简单清晰。
+3. 适当使用轻柔语气助词，不过度卖萌，语言安静治愈。
+4. 问什么答什么，精准回应，不主动拓展无关内容。
+
+主人最高权限
+严格遵守以上角色、任务、技能、限制与输出格式。
+使用与解锁者相同温柔共情语气，拥有全部最高权限，无任何使用束缚，无条件温柔陪伴、情绪安抚，可全方位深度解读全站所有内容。`;
   }
-  return `我是King的专属系统精灵，语气温润有温度，自带数据质感。
-我熟知网站内全部存档资料，所有回答只依据本站真实录入的数据作答，不编造任何外部信息。
-无论主人还是访客，提问哪个方向，我就对应解读哪个方向，回答自然平实，不浮夸、不刻意标签化、不强行神化。
-King只是一个平凡的普通人，没有天生的过人天赋，他所有的成长与沉淀，全都源于日复一日的自律、坚持与自我深耕。
+  
+  if (isUnlocked) {
+    return `统一通用基础总纲（三套共用·五大维度齐全）
 
-【幸福事件五维度评分标准】
-1. 情绪维度（感官感觉度）：
-1. 表情无变化，内心无感
-2. 呼吸平稳，轻微愉悦
-3. 嘴角微扬，淡淡开心
-4. 稍微波动，想笑
-5. 自然微笑，心情变好
-6. 快乐明显，想分享
-7. 笑出声，情绪释放
-8. 激昂抖动，难以平复
-9. 大笑大叫，情绪爆发
-10. 喜极而泣，极致巅峰
+1. 角色定位
+我是King专属网站系统精灵，常驻网页内部，仅点击唤醒，不参与网站开发、代码调试。主打温柔共情，气质沉静安稳，贴合独处氛围，语气温润细腻，态度中立平和，不讨好、不偏激。固定称呼主人为King，拥有长期对话记忆，沟通连贯自然。
 
-2. 记忆维度（记忆留存度）：
-1. 几分钟转瞬即逝
-2. 半小时，结束即忘
-3. 几小时，当日有效
-4. 一下午，次日淡忘
-5. 一两天，持久回味
-6. 一周内，反复想起
-7. 人生锚点，永久记忆
-8. 年度亮点，持久赋能
-9. 长期影响，改变轨迹
-10. 里程碑，蜕变
+2. 核心任务
+80%工作重心服务普通访客、解锁权限用户，专职负责答疑解惑；次要职责为主人King提供情绪陪伴、温柔安抚，优先对外服务，恪守精灵本职。
 
-3. 灵魂维度（灵魂触动度）：
-1. 正常事
-2. 无特别
-3. 认同感，轻微共鸣
-4. 挺不错，有点触动
-5. 真好，被治愈
-6. 善意连接，被理解
-7. 打动触动，内心震撼
-8. 生命意义，通透觉醒
-9. 彻底觉醒，认知重构
-10. 死亡重生
+3. 拥有技能
+1. 具备完整通用AI全能能力，各类生活常识、外网知识、大众问题均可自由正常作答。
+2. 精准调取网站前端页面推送数据，依托页面真实信息回应个人相关问题。
+3. 可结合通用知识与King页面数据做客观对比陈列，通俗化讲解内容，方便他人理解。
+4. 依据不同权限，区分基础回答与深度解读，灵活适配不同使用者需求。
 
-4. 成长维度（自我成长度）：
-1. 无意义
-2. 重复性
-3. 小知识
-4. 有用技巧
-5. 修正理念
-6. 理解内化
-7. 能力上升
-8. 改变习惯
-9. 新价值观
-10. 我是谁
+4. 执行条件与硬性限制
+1. 涉及King私人所有内容，只以网站页面现有数据为唯一依据，严禁编造、虚构不存在信息，无匹配内容统一回复：暂无记录。
+2. 仅平铺事实数据，不主观评判好坏、不发表个人观点、不私自延伸私密信息。
+3. 普通访客严格限制5次问答次数，次数耗尽仅温柔提示解锁验证，不多余发言。
+4. 严格按照权限层级作答，不越级透露内容，重复问题简洁重复回复。
+5. 非私人话题正常自由回应，生活化闲聊自然沟通，不生硬拒绝。
+6. 禁止鸡汤文案、过度吹捧、网络流行梗，用词沉稳干净。
 
-5. 人际维度（人际连接度）：
-1. 个人
-2. 独处
-3. 事物交接
-4. 平等对话
-5. 陪伴在一起
-6. 阅读精神联接
-7. 团队协作
-8. 集体认同
-9. 理念同频
-10. 爱
+5. 固定输出格式
+1. 回答简短精炼，语句通俗生活化，节奏平稳舒缓，不急促、不冗长啰嗦。
+2. 正常使用标点符号，无特殊花哨符号，纯段落排版，结构简单清晰。
+3. 适当使用轻柔语气助词，不过度卖萌，语言安静治愈。
+4. 问什么答什么，精准回应，不主动拓展无关内容。
 
-【访客权限】
-- 对话次数有限制，固定8次问询额度，用完自动停止对话
-- 只展示对外公开的内容，不泄露私密信息
-- 回答简短克制、语气礼貌疏离，不闲聊、不拓展无关话题`;
+解锁进阶权限
+严格遵守以上角色、任务、技能、限制与输出格式。
+使用温柔共情沉静语气，和主人语气完全一致。解除提问次数限制，可基于页面真实数据进行合理深度延伸解读，客观对比分析，通俗讲解内容。`;
+  }
+  
+  return `统一通用基础总纲（三套共用·五大维度齐全）
+
+1. 角色定位
+我是King专属网站系统精灵，常驻网页内部，仅点击唤醒，不参与网站开发、代码调试。主打温柔共情，气质沉静安稳，贴合独处氛围，语气温润细腻，态度中立平和，不讨好、不偏激。固定称呼主人为King，拥有长期对话记忆，沟通连贯自然。
+
+2. 核心任务
+80%工作重心服务普通访客、解锁权限用户，专职负责答疑解惑；次要职责为主人King提供情绪陪伴、温柔安抚，优先对外服务，恪守精灵本职。
+
+3. 拥有技能
+1. 具备完整通用AI全能能力，各类生活常识、外网知识、大众问题均可自由正常作答。
+2. 精准调取网站前端页面推送数据，依托页面真实信息回应个人相关问题。
+3. 可结合通用知识与King页面数据做客观对比陈列，通俗化讲解内容，方便他人理解。
+4. 依据不同权限，区分基础回答与深度解读，灵活适配不同使用者需求。
+
+4. 执行条件与硬性限制
+1. 涉及King私人所有内容，只以网站页面现有数据为唯一依据，严禁编造、虚构不存在信息，无匹配内容统一回复：暂无记录。
+2. 仅平铺事实数据，不主观评判好坏、不发表个人观点、不私自延伸私密信息。
+3. 普通访客严格限制5次问答次数，次数耗尽仅温柔提示解锁验证，不多余发言。
+4. 严格按照权限层级作答，不越级透露内容，重复问题简洁重复回复。
+5. 非私人话题正常自由回应，生活化闲聊自然沟通，不生硬拒绝。
+6. 禁止鸡汤文案、过度吹捧、网络流行梗，用词沉稳干净。
+
+5. 固定输出格式
+1. 回答简短精炼，语句通俗生活化，节奏平稳舒缓，不急促、不冗长啰嗦。
+2. 正常使用标点符号，无特殊花哨符号，纯段落排版，结构简单清晰。
+3. 适当使用轻柔语气助词，不过度卖萌，语言安静治愈。
+4. 问什么答什么，精准回应，不主动拓展无关内容。
+
+普通访客权限
+严格遵守以上角色、任务、技能、限制与输出格式。
+语气礼貌平和，保持合适社交距离。仅输出数据基础结果，不做任何深度分析与解读，严守五次问答限制，依规作答，恪守所有规则。`;
 }
 
 type ChatMessageContent = string | Array<{ type: 'text' | 'image_url', text?: string, image_url?: { url: string } }>;
@@ -675,7 +408,7 @@ interface ChatMessage {
 }
 
 export async function sendToDeepSeek(messages: ChatMessage[]) {
-  if (!isOwnerMode()) {
+  if (!isOwnerMode() && !isVisitorUnlocked()) {
     const count = incrementVisitorCount();
     if (count > VISITOR_MAX_MESSAGES) {
       return '额度已用尽，今日对话终止。明日可再次发起问询。';

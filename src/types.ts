@@ -131,3 +131,9 @@ export interface Happiness {
   event: string;
   level: number;
 }
+
+export interface Profile {
+  id: string;
+  content: string;  // King 的简介内容
+  updatedAt: string; // YYYY-MM-DD
+}
