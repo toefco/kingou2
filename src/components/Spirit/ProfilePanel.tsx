@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { Edit, X, User } from 'lucide-react';
+import { Edit, User } from 'lucide-react';
 import { useStore } from '../../store';
-import { Profile } from '../../types';
 
 export default function ProfilePanel() {
   const profile = useStore((s) => s.profile);
