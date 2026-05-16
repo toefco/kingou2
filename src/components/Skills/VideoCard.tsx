@@ -22,21 +22,29 @@ export default function VideoCard({ skill }: Props) {
     <>
       <div className="group relative overflow-hidden rounded-xl bg-ink/50 border border-gold/20 hover:border-gold/40 transition-colors">
         <div className="aspect-video overflow-hidden">
-          <img
-            src={skill.coverUrl}
-            alt={skill.title}
-            loading="lazy"
-            decoding="async"
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 will-change-transform"
-          />
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={() => setShowVideo(true)}
-              className="p-4 rounded-full bg-gold/90 text-ink hover:bg-gold transition-colors"
-            >
-              <Play size={32} fill="currentColor" />
-            </button>
-          </div>
+          {skill.coverUrl && !skill.coverUrl.startsWith('data:') ? (
+            <>
+              <img
+                src={skill.coverUrl}
+                alt={skill.title}
+                loading="lazy"
+                decoding="async"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 will-change-transform"
+              />
+              <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <button
+                  onClick={() => setShowVideo(true)}
+                  className="p-4 rounded-full bg-gold/90 text-ink hover:bg-gold transition-colors"
+                >
+                  <Play size={32} fill="currentColor" />
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="w-full h-full bg-ink/30 flex items-center justify-center">
+              <span className="text-paper/20 text-xs">封面</span>
+            </div>
+          )}
         </div>
         <div className="p-4">
           <div className="flex items-start justify-between gap-2 mb-2">

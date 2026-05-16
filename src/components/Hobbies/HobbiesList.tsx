@@ -63,20 +63,38 @@ export default function HobbiesList() {
         }}
       >
         {hobby.imageUrl && !isVideo ? (
-          <img src={hobby.imageUrl} alt={hobby.title} loading="lazy" decoding="async" className="w-full h-full object-cover object-top" />
+          (() => {
+            if (!hobby.imageUrl.startsWith('data:')) {
+              return <img src={hobby.imageUrl} alt={hobby.title} loading="lazy" decoding="async" className="w-full h-full object-cover object-top" />;
+            }
+            return (
+              <div className="w-full h-full bg-ink/30 flex items-center justify-center">
+                <Star size={24} className="text-gold/30 fill-gold/10" />
+              </div>
+            );
+          })()
         ) : isVideo && hobby.imageUrl ? (
           (() => {
-            const thumb = hobby.coverUrl || getYoutubeThumbnail(hobby.imageUrl);
-            return thumb ? (
-              <>
-                <img src={thumb} alt={hobby.title} loading="lazy" decoding="async" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                  <div className="p-3 rounded-full bg-gold/20 border border-gold/30 backdrop-blur-sm">
-                    <Play size={22} className="text-gold fill-gold" />
+            if (!hobby.imageUrl.startsWith('data:')) {
+              const thumb = hobby.coverUrl || getYoutubeThumbnail(hobby.imageUrl);
+              return thumb ? (
+                <>
+                  <img src={thumb} alt={hobby.title} loading="lazy" decoding="async" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                  <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                    <div className="p-3 rounded-full bg-gold/20 border border-gold/30 backdrop-blur-sm">
+                      <Play size={22} className="text-gold fill-gold" />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <div className="w-full h-full bg-gradient-to-br from-slate-800 to-ink flex items-center justify-center">
+                  <div className="p-4 rounded-full bg-gold/20 border border-gold/30">
+                    <Play size={28} className="text-gold fill-gold" />
                   </div>
                 </div>
-              </>
-            ) : (
+              );
+            }
+            return (
               <div className="w-full h-full bg-gradient-to-br from-slate-800 to-ink flex items-center justify-center">
                 <div className="p-4 rounded-full bg-gold/20 border border-gold/30">
                   <Play size={28} className="text-gold fill-gold" />

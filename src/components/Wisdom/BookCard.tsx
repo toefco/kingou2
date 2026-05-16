@@ -128,21 +128,18 @@ export default function BookCard({ book, onImageClick, onEdit }: Props) {
             onImageClick(book);
           }}
         >
-          <img
-            src={book.coverUrl}
-            alt=""
-            loading="lazy"
-            decoding="async"
-            className="w-full h-full object-cover"
-            style={{ transition: 'transform 0.5s ease', transform: isHovered ? 'scale(1.06)' : 'scale(1)', objectPosition: 'top center' }}
-          />
-          {book.coverLink && (
-            <div className="absolute top-2 left-2 z-20 p-1 rounded-lg bg-black/70 text-white/60 hover:text-gold transition-colors">
-              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                <polyline points="15 3 21 3 21 9"></polyline>
-                <line x1="10" y1="14" x2="21" y2="3"></line>
-              </svg>
+          {book.coverUrl && !book.coverUrl.startsWith('data:') ? (
+            <img
+              src={book.coverUrl}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              className="w-full h-full object-cover"
+              style={{ transition: 'transform 0.5s ease', transform: isHovered ? 'scale(1.06)' : 'scale(1)', objectPosition: 'top center' }}
+            />
+          ) : (
+            <div className="w-full h-full bg-ink/30 flex items-center justify-center">
+              <span className="text-paper/20 text-xs">封面</span>
             </div>
           )}
           {/* Bottom shadow overlay */}
@@ -166,30 +163,18 @@ export default function BookCard({ book, onImageClick, onEdit }: Props) {
             onImageClick(book);
           }}
         >
-          {book.dataUrl ? (
-            <>
-              <img
-                src={book.dataUrl}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                className="w-full h-full object-cover"
-                style={{ transition: 'transform 0.5s ease', transform: isHovered ? 'scale(1.04)' : 'scale(1)', objectPosition: 'top center' }}
-              />
-              {book.dataLink && (
-                <div className="absolute top-2 left-2 z-20 p-1 rounded-lg bg-black/70 text-white/60 hover:text-gold transition-colors">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-                    <polyline points="15 3 21 3 21 9"></polyline>
-                    <line x1="10" y1="14" x2="21" y2="3"></line>
-                  </svg>
-                </div>
-              )}
-            </>
+          {book.dataUrl && !book.dataUrl.startsWith('data:') ? (
+            <img
+              src={book.dataUrl}
+              alt=""
+              loading="lazy"
+              decoding="async"
+              className="w-full h-full object-cover"
+              style={{ transition: 'transform 0.5s ease', transform: isHovered ? 'scale(1.04)' : 'scale(1)', objectPosition: 'top center' }}
+            />
           ) : (
             <div
-              className="w-full h-full flex flex-col items-center justify-center"
-              style={{ background: 'rgba(212,175,55,0.03)' }}
+              className="w-full h-full flex flex-col items-center justify-center bg-ink/30"
             >
               <BookOpen size={26} style={{ color: 'rgba(212,175,55,0.2)' }} />
             </div>

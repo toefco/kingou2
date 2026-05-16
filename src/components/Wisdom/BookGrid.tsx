@@ -374,7 +374,7 @@ export default function BookGrid() {
                 className="group relative bg-ink/60 rounded-xl border border-gold/15 hover:border-gold/30 transition-all duration-300 overflow-hidden hover:-translate-y-1 hover:shadow-lg hover:shadow-gold/10"
               >
                 <div className="aspect-[3/4] overflow-hidden">
-                  {book.coverUrl ? (
+                  {book.coverUrl && !book.coverUrl.startsWith('data:') ? (
                     <img 
                       src={book.coverUrl} 
                       alt={book.title}
@@ -384,8 +384,8 @@ export default function BookGrid() {
                       }}
                     />
                   ) : (
-                    <div className="w-full h-full bg-gold/10 flex items-center justify-center">
-                      <span className="text-gold/40 text-4xl">📚</span>
+                    <div className="w-full h-full bg-ink/30 flex items-center justify-center">
+                      <span className="text-paper/20 text-xs">封面</span>
                     </div>
                   )}
                 </div>
@@ -674,7 +674,7 @@ export default function BookGrid() {
                 <button type="button" onClick={() => setIsAdding(false)} className="flex-1 btn-secondary">
                   取消
                 </button>
-                <button type="submit" disabled={!form.coverUrl} className="flex-1 btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
+                <button type="submit" className="flex-1 btn-primary">
                   添加
                 </button>
               </div>
