@@ -1,7 +1,8 @@
-import { useRef, useMemo, useState, useEffect } from 'react';
+import { useRef, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import * as THREE from 'three';
+import React from 'react';
 
 /* ─── 星云核心 Shader ──────────────────────────────────────────────────────── */
 
@@ -282,42 +283,46 @@ function SceneContent() {
   );
 }
 
-export default function SpaceScene() {
-  const [webglSupported, setWebglSupported] = useState(true);
+function CanvasFallback() {
+  return (
+    <div 
+      className="absolute inset-0 z-0 pointer-events-none"
+      style={{ background: 'linear-gradient(135deg, #03020f 0%, #0a0a1a 50%, #1a0a2e 100%)' }}
+    />
+  );
+}
 
-  useEffect(() => {
-    try {
-      const canvas = document.createElement('canvas');
-      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-      if (!gl) {
-        setWebglSupported(false);
-      }
-    } catch {
-      setWebglSupported(false);
-    }
-  }, []);
-
-  if (!webglSupported) {
-    return (
-      <div 
-        className="absolute inset-0 z-0 pointer-events-none"
-        style={{ background: 'linear-gradient(135deg, #03020f 0%, #0a0a1a 50%, #1a0a2e 100%)' }}
-      />
-    );
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode; fallback?: React.ReactNode },
+  { hasError: boolean }
+> {
+  constructor(props: { children: React.ReactNode; fallback?: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
   }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback || <CanvasFallback />;
+    }
+    return this.props.children;
+  }
+}
 
+export default function SpaceScene() {
   return (
     <div className="absolute inset-0 z-0 pointer-events-none">
-      <Canvas
-        camera={{ position: [0, 0, 9], fov: 58 }}
-        gl={{ antialias: true, alpha: false }}
-        dpr={[1, 1.5]}
-        onCreated={({ gl }) => {
-          gl.setClearColor('#03020f');
-        }}
-      >
-        <SceneContent />
-      </Canvas>
+      <ErrorBoundary fallback={<CanvasFallback />}>
+        <Canvas
+          camera={{ position: [0, 0, 9], fov: 58 }}
+          gl={{ antialias: true, alpha: false }}
+          dpr={[1, 1.5]}
+        >
+          <SceneContent />
+        </Canvas>
+      </ErrorBoundary>
     </div>
   );
 }

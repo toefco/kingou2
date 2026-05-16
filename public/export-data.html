@@ -1,0 +1,142 @@
+
+&lt;!DOCTYPE html&gt;
+&lt;html lang="zh-CN"&gt;
+&lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    &lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;
+    &lt;title&gt;导出数据&lt;/title&gt;
+    &lt;style&gt;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #0a0a1c;
+            color: #fff;
+        }
+        h1 {
+            color: #60a5fa;
+            margin-bottom: 20px;
+        }
+        .btn {
+            background: #60a5fa;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        .btn:hover {
+            background: #3b82f6;
+        }
+        .status {
+            padding: 16px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            margin: 16px 0;
+        }
+        .success {
+            color: #22c55e;
+        }
+        .info {
+            color: #60a5fa;
+        }
+        textarea {
+            width: 100%;
+            height: 300px;
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #fff;
+            padding: 12px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    &lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;📦 导出您的数据&lt;/h1&gt;
+    
+    &lt;div class="status"&gt;
+        &lt;p class="info"&gt;此页面将从 localStorage 中读取您的数据并保存为文件。&lt;/p&gt;
+    &lt;/div&gt;
+
+    &lt;button class="btn" id="exportBtn"&gt;🚀 导出数据&lt;/button&gt;
+    &lt;button class="btn" id="copyBtn" style="background: #22c55e; margin-left: 10px;"&gt;📋 复制数据&lt;/button&gt;
+
+    &lt;div class="status" style="margin-top: 20px;"&gt;
+        &lt;p class="info" id="dataInfo"&gt;数据状态：等待读取...&lt;/p&gt;
+    &lt;/div&gt;
+
+    &lt;textarea id="dataOutput" readonly placeholder="数据将显示在这里..."&gt;&lt;/textarea&gt;
+
+    &lt;script&gt;
+        const STORAGE_KEY = 'talent-showcase-local-data';
+        
+        document.getElementById('exportBtn').addEventListener('click', function() {
+            try {
+                const data = localStorage.getItem(STORAGE_KEY);
+                if (data) {
+                    const parsedData = JSON.parse(data);
+                    document.getElementById('dataOutput').value = JSON.stringify(parsedData, null, 2);
+                    document.getElementById('dataInfo').innerHTML = `
+                        &lt;span class="success"&gt;✅ 数据读取成功！&lt;/span&gt;&lt;br&gt;
+                        📚 书籍数量: ${parsedData.books?.length || 0}&lt;br&gt;
+                        📝 文章数量: ${parsedData.articles?.length || 0}&lt;br&gt;
+                        🏋️ 训练记录: ${parsedData.workouts?.length || 0}
+                    `;
+                    
+                    const blob = new Blob([JSON.stringify(parsedData, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `my-data-${new Date().toISOString().split('T')[0]}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                } else {
+                    document.getElementById('dataInfo').innerHTML = '&lt;span style="color: #ef4444;"&gt;❌ 没有找到数据，请确保您在正确的域名下（localhost）&lt;/span&gt;';
+                }
+            } catch (e) {
+                document.getElementById('dataInfo').innerHTML = `&lt;span style="color: #ef4444;"&gt;❌ 错误: ${e.message}&lt;/span&gt;`;
+            }
+        });
+
+        document.getElementById('copyBtn').addEventListener('click', function() {
+            const textarea = document.getElementById('dataOutput');
+            if (textarea.value) {
+                navigator.clipboard.writeText(textarea.value).then(() =&gt; {
+                    alert('✅ 数据已复制到剪贴板！');
+                }).catch(err =&gt; {
+                    textarea.select();
+                    document.execCommand('copy');
+                    alert('✅ 数据已复制到剪贴板！');
+                });
+            }
+        });
+
+        window.onload = function() {
+            try {
+                const data = localStorage.getItem(STORAGE_KEY);
+                if (data) {
+                    const parsedData = JSON.parse(data);
+                    document.getElementById('dataInfo').innerHTML = `
+                        &lt;span class="success"&gt;✅ 检测到数据！&lt;/span&gt;&lt;br&gt;
+                        📚 书籍数量: ${parsedData.books?.length || 0}&lt;br&gt;
+                        📝 文章数量: ${parsedData.articles?.length || 0}&lt;br&gt;
+                        🏋️ 训练记录: ${parsedData.workouts?.length || 0}&lt;br&gt;
+                        &lt;span style="font-size: 14px; opacity: 0.7;"&gt;点击上方按钮导出或复制数据&lt;/span&gt;
+                    `;
+                } else {
+                    document.getElementById('dataInfo').innerHTML = '&lt;span style="color: #fbbf24;"&gt;⚠️ 没有找到数据，请先在应用中添加数据&lt;/span&gt;';
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        };
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
