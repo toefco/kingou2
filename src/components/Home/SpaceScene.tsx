@@ -264,7 +264,7 @@ function SceneContent() {
       <NebulaCore />
 
       {/* drei 星空（静态无闪烁） */}
-      <Stars radius={120} depth={60} count={6000} factor={4} saturation={0.5} fade={0} />
+      <Stars radius={120} depth={60} count={6000} factor={4} saturation={0.5} fade={false} />
 
       {/* 轨道控制 */}
       <OrbitControls

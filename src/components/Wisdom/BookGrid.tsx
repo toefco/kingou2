@@ -1,20 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, X, Image, Trash2, Upload, Edit2, ExternalLink, Camera } from 'lucide-react';
+import { Plus, X, Image, Trash2, Edit2 } from 'lucide-react';
 import { useStore } from '../../store';
 import { Book, ReadingSlotObject } from '../../types';
 import BookCard from './BookCard';
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      resolve(result);
-    };
-    reader.onerror = () => reject(new Error('文件读取失败'));
-    reader.readAsDataURL(file);
-  });
-}
 
 export default function BookGrid() {
   const books = useStore((state) => state.books);
@@ -363,7 +351,7 @@ export default function BookGrid() {
           <button 
             onClick={() => {
               setEditingRecommendedId(null);
-              setRecommendedForm({ title: '', author: '', coverUrl: '', description: '' });
+              setRecommendedForm({ title: '', author: '', category: '', coverUrl: '', description: '' });
               setIsAddingRecommended(true);
             }}
             className="px-3 py-1.5 rounded-lg text-sm bg-gold/20 text-gold hover:bg-gold/30 transition-colors flex items-center gap-2"
@@ -437,7 +425,7 @@ export default function BookGrid() {
               <button onClick={() => {
                 setIsAddingRecommended(false);
                 setEditingRecommendedId(null);
-                setRecommendedForm({ title: '', author: '', coverUrl: '', description: '' });
+                setRecommendedForm({ title: '', author: '', category: '', coverUrl: '', description: '' });
               }} className="text-paper/60 hover:text-paper">
                 <X size={20} />
               </button>

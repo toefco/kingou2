@@ -1,19 +1,7 @@
 import { useState } from 'react';
-import { Plus, X, Star, Trash2, Play, Upload, Camera, ExternalLink } from 'lucide-react';
+import { Plus, X, Star, Trash2, Play } from 'lucide-react';
 import { useStore } from '../../store';
 import { Hobby } from '../../types';
-
-function fileToBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const result = e.target?.result as string;
-      resolve(result);
-    };
-    reader.onerror = () => reject(new Error('文件读取失败'));
-    reader.readAsDataURL(file);
-  });
-}
 
 const hobbyTypeMeta = [
   { value: 'music' as const, label: '听歌', icon: '🎵' },
