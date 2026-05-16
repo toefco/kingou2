@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Plus, X, Star, Trash2, Play } from 'lucide-react';
+import { useState, useCallback } from 'react';
+import { Plus, X, Star, Trash2, Play, Edit3 } from 'lucide-react';
 import { useStore } from '../../store';
 import { Hobby } from '../../types';
 
@@ -20,8 +20,10 @@ function getYoutubeThumbnail(url: string): string | null {
 export default function HobbiesList() {
   const hobbies = useStore((state) => state.hobbies);
   const addHobby = useStore((state) => state.addHobby);
+  const updateHobby = useStore((state) => state.updateHobby);
   const deleteHobby = useStore((state) => state.deleteHobby);
   const [isAdding, setIsAdding] = useState(false);
+  const [editingHobby, setEditingHobby] = useState<Hobby | null>(null);
   const [selectedImage, setSelectedImage] = useState<{ url: string; title: string } | null>(null);
   const [selectedVideo, setSelectedVideo] = useState<{ url: string; title: string } | null>(null);
   const [form, setForm] = useState({
@@ -36,101 +38,24 @@ export default function HobbiesList() {
     coverUrl: '',
   });
 
-  // 渲染单个里程碑卡片
-  const renderMilestoneCard = (hobby: Hobby) => {
-    const isVideo = hobby.mediaType === 'video';
-    return (
-      <div
-        key={hobby.id}
-        className="group relative aspect-[1/1] rounded-xl overflow-hidden transition-all duration-300 cursor-pointer"
-        style={{ border: '1px solid rgba(236,72,153,0.12)' }}
-        onMouseEnter={e => {
-          (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(236,72,153,0.35)';
-          (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-4px)';
-          (e.currentTarget as HTMLDivElement).style.boxShadow = '0 12px 32px rgba(236,72,153,0.12)';
-        }}
-        onMouseLeave={e => {
-          (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(236,72,153,0.12)';
-          (e.currentTarget as HTMLDivElement).style.transform = 'none';
-          (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
-        }}
-        onClick={() => {
-          if (hobby.imageUrl) {
-            isVideo
-              ? setSelectedVideo({ url: hobby.imageUrl, title: hobby.title })
-              : setSelectedImage({ url: hobby.imageUrl, title: hobby.title });
-          }
-        }}
-      >
-        {hobby.imageUrl && !isVideo ? (
-          (() => {
-            if (!hobby.imageUrl.startsWith('data:')) {
-              return <img src={hobby.imageUrl} alt={hobby.title} loading="lazy" decoding="async" className="w-full h-full object-cover object-top" />;
-            }
-            return (
-              <div className="w-full h-full bg-ink/30 flex items-center justify-center">
-                <Star size={24} className="text-gold/30 fill-gold/10" />
-              </div>
-            );
-          })()
-        ) : isVideo && hobby.imageUrl ? (
-          (() => {
-            if (!hobby.imageUrl.startsWith('data:')) {
-              const thumb = hobby.coverUrl || getYoutubeThumbnail(hobby.imageUrl);
-              return thumb ? (
-                <>
-                  <img src={thumb} alt={hobby.title} loading="lazy" decoding="async" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                    <div className="p-3 rounded-full bg-gold/20 border border-gold/30 backdrop-blur-sm">
-                      <Play size={22} className="text-gold fill-gold" />
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <div className="w-full h-full bg-gradient-to-br from-slate-800 to-ink flex items-center justify-center">
-                  <div className="p-4 rounded-full bg-gold/20 border border-gold/30">
-                    <Play size={28} className="text-gold fill-gold" />
-                  </div>
-                </div>
-              );
-            }
-            return (
-              <div className="w-full h-full bg-gradient-to-br from-slate-800 to-ink flex items-center justify-center">
-                <div className="p-4 rounded-full bg-gold/20 border border-gold/30">
-                  <Play size={28} className="text-gold fill-gold" />
-                </div>
-              </div>
-            );
-          })()
-        ) : (
-          <div className="w-full h-full bg-ink/50 flex items-center justify-center">
-            <Star size={24} className="text-gold/30 fill-gold/10" />
-          </div>
-        )}
-        <div className="absolute inset-0 bg-gradient-to-t from-ink/95 via-ink/20 to-transparent" />
-        <div className="absolute bottom-0 left-0 right-0 p-2">
-          <p className="text-xs text-paper/90 font-serif line-clamp-1">{hobby.title}</p>
-          <p className="text-[10px] text-paper/50">{hobby.date}</p>
-        </div>
-        <button
-          onClick={(e) => { e.stopPropagation(); deleteHobby(hobby.id); }}
-          className="absolute top-1.5 right-1.5 z-10 p-1 rounded bg-ink/80 text-paper/40 hover:text-cinnabar opacity-0 group-hover:opacity-100 transition-opacity"
-        >
-          <Trash2 size={12} />
-        </button>
-      </div>
-    );
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault();
-    const hobby: Hobby = {
-      id: Date.now().toString(),
-      ...form,
-      imageUrl: form.imageLink || form.imageUrl,
-      date: new Date().toISOString().split('T')[0],
-    };
-    addHobby(hobby);
+    if (editingHobby) {
+      const updatedHobby: Hobby = {
+        ...editingHobby,
+        ...form,
+        imageUrl: form.imageLink || form.imageUrl,
+      };
+      updateHobby(editingHobby.id, updatedHobby);
+    } else {
+      const hobby: Hobby = {
+        id: Date.now().toString(),
+        ...form,
+        imageUrl: form.imageLink || form.imageUrl,
+        date: new Date().toISOString().split('T')[0],
+      };
+      addHobby(hobby);
+    }
     setForm({ 
       type: 'music', 
       title: '', 
@@ -143,7 +68,8 @@ export default function HobbiesList() {
       coverUrl: '' 
     });
     setIsAdding(false);
-  };
+    setEditingHobby(null);
+  }, [editingHobby, form, addHobby, updateHobby]);
 
   return (
     <div className="space-y-6">
@@ -160,8 +86,10 @@ export default function HobbiesList() {
               background: 'linear-gradient(90deg, transparent, rgba(236,72,153,0.6), transparent)'
             }} />
             <div className="flex items-center justify-between mb-6">
-              <h3 className="text-xl font-serif" style={{ color: '#f9a8d4' }}>记录里程碑</h3>
-              <button onClick={() => setIsAdding(false)} className="text-paper/60 hover:text-paper">
+              <h3 className="text-xl font-serif" style={{ color: '#f9a8d4' }}>
+                {editingHobby ? '编辑里程碑' : '记录里程碑'}
+              </h3>
+              <button onClick={() => { setIsAdding(false); setEditingHobby(null); }} className="text-paper/60 hover:text-paper">
                 <X size={20} />
               </button>
             </div>
@@ -183,6 +111,19 @@ export default function HobbiesList() {
                 </select>
               </div>
               <div>
+                <label className="block text-sm text-paper/60 mb-2">标题</label>
+                <input
+                  type="text"
+                  value={form.title}
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
+                  className="w-full rounded-xl px-4 py-2.5 text-paper focus:outline-none"
+                  style={{ background: 'rgba(236,72,153,0.07)', border: '1px solid rgba(236,72,153,0.2)' }}
+                  onFocus={e => (e.target.style.borderColor = 'rgba(236,72,153,0.5)')}
+                  onBlur={e => (e.target.style.borderColor = 'rgba(236,72,153,0.2)')}
+                  placeholder="输入标题"
+                />
+              </div>
+              <div>
                 <label className="block text-sm text-paper/60 mb-2">内容</label>
                 <textarea
                   value={form.content}
@@ -191,7 +132,7 @@ export default function HobbiesList() {
                   style={{ background: 'rgba(236,72,153,0.07)', border: '1px solid rgba(236,72,153,0.2)' }}
                   onFocus={e => (e.target.style.borderColor = 'rgba(236,72,153,0.5)')}
                   onBlur={e => (e.target.style.borderColor = 'rgba(236,72,153,0.2)')}
-                  required
+                  placeholder="输入内容"
                 />
               </div>
               <label className="flex items-center gap-3 cursor-pointer">
@@ -285,7 +226,7 @@ export default function HobbiesList() {
                 </div>
               )}
               <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => setIsAdding(false)} className="flex-1 btn-secondary">
+                <button type="button" onClick={() => { setIsAdding(false); setEditingHobby(null); }} className="flex-1 btn-secondary">
                   取消
                 </button>
                 <button type="submit" className="flex-1 btn-primary">
@@ -334,7 +275,110 @@ export default function HobbiesList() {
             </div>
             {typeMilestones.length > 0 ? (
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
-                {typeMilestones.map(renderMilestoneCard)}
+                {typeMilestones.map((hobby) => {
+                  const isVideo = hobby.mediaType === 'video';
+                  return (
+                    <div
+                      key={hobby.id}
+                      className="group relative aspect-[1/1] rounded-xl overflow-hidden transition-all duration-300 cursor-pointer"
+                      style={{ border: '1px solid rgba(236,72,153,0.12)' }}
+                      onMouseEnter={e => {
+                        (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(236,72,153,0.35)';
+                        (e.currentTarget as HTMLDivElement).style.transform = 'translateY(-4px)';
+                        (e.currentTarget as HTMLDivElement).style.boxShadow = '0 12px 32px rgba(236,72,153,0.12)';
+                      }}
+                      onMouseLeave={e => {
+                        (e.currentTarget as HTMLDivElement).style.borderColor = 'rgba(236,72,153,0.12)';
+                        (e.currentTarget as HTMLDivElement).style.transform = 'none';
+                        (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
+                      }}
+                      onClick={() => {
+                        if (hobby.imageUrl) {
+                          isVideo
+                            ? setSelectedVideo({ url: hobby.imageUrl, title: hobby.title })
+                            : setSelectedImage({ url: hobby.imageUrl, title: hobby.title });
+                        }
+                      }}
+                    >
+                      {hobby.imageUrl && !isVideo ? (
+                        (() => {
+                          if (!hobby.imageUrl.startsWith('data:')) {
+                            return <img src={hobby.imageUrl} alt={hobby.title} loading="lazy" decoding="async" className="w-full h-full object-cover object-top" />;
+                          }
+                          return (
+                            <div className="w-full h-full bg-ink/30 flex items-center justify-center">
+                              <Star size={24} className="text-gold/30 fill-gold/10" />
+                            </div>
+                          );
+                        })()
+                      ) : isVideo && hobby.imageUrl ? (
+                        (() => {
+                          if (!hobby.imageUrl.startsWith('data:')) {
+                            const thumb = hobby.coverUrl || getYoutubeThumbnail(hobby.imageUrl);
+                            return thumb ? (
+                              <>
+                                <img src={thumb} alt={hobby.title} loading="lazy" decoding="async" className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                                <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                                  <div className="p-3 rounded-full bg-gold/20 border border-gold/30 backdrop-blur-sm">
+                                    <Play size={22} className="text-gold fill-gold" />
+                                  </div>
+                                </div>
+                              </>
+                            ) : (
+                              <div className="w-full h-full bg-gradient-to-br from-slate-800 to-ink flex items-center justify-center">
+                                <div className="p-4 rounded-full bg-gold/20 border border-gold/30">
+                                  <Play size={28} className="text-gold fill-gold" />
+                                </div>
+                              </div>
+                            );
+                          }
+                          return (
+                            <div className="w-full h-full bg-gradient-to-br from-slate-800 to-ink flex items-center justify-center">
+                              <div className="p-4 rounded-full bg-gold/20 border border-gold/30">
+                                <Play size={28} className="text-gold fill-gold" />
+                              </div>
+                            </div>
+                          );
+                        })()
+                      ) : (
+                        <div className="w-full h-full bg-ink/50 flex items-center justify-center">
+                          <Star size={24} className="text-gold/30 fill-gold/10" />
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-ink/95 via-ink/20 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-2">
+                        <p className="text-xs text-paper/90 font-serif line-clamp-1">{hobby.title}</p>
+                        <p className="text-[10px] text-paper/50">{hobby.date}</p>
+                      </div>
+                      <div className="absolute top-1.5 right-1.5 z-10 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingHobby(hobby);
+                            setForm({
+                              ...hobby,
+                              imageUrl: hobby.imageUrl || '',
+                              imageLink: hobby.imageUrl || '',
+                              imageMode: 'url',
+                              mediaType: hobby.mediaType || 'image',
+                              coverUrl: hobby.coverUrl || ''
+                            });
+                            setIsAdding(true);
+                          }}
+                          className="p-1 rounded bg-ink/80 text-paper/40 hover:text-yellow-400 transition-colors"
+                        >
+                          <Edit3 size={12} />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteHobby(hobby.id); }}
+                          className="p-1 rounded bg-ink/80 text-paper/40 hover:text-cinnabar transition-colors"
+                        >
+                          <Trash2 size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="flex items-center justify-center h-16 text-paper/20 text-sm">

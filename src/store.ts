@@ -1,6 +1,6 @@
 
 import { create } from 'zustand';
-import { Talent, FitnessTest, Workout, Book, YearSummary, Article, Skill, Hobby, Schedule, ScheduleRecord, HappinessRecord, Happiness, Trait, ReadingSlot, ReadingSlotObject, Profile } from './types';
+import { Talent, FitnessTest, Workout, Book, YearSummary, Article, Skill, Hobby, Schedule, ScheduleRecord, HappinessRecord, Happiness, Trait, ReadingSlot, ReadingSlotObject, Profile, SixModulesOverview } from './types';
 import { staticData } from './data/staticData';
 
 const STORAGE_KEY = 'talent-showcase-local-data';
@@ -80,6 +80,7 @@ interface AppState {
   readingSlots: (ReadingSlot | null)[];
   brokenSlots: number[];
   profile: Profile | null;
+  sixModulesOverview: SixModulesOverview | null;
   
   // 只读操作（所有编辑操作在本地完成，线上只展示）
   // 保留接口，但实际不改变静态数据
@@ -128,6 +129,7 @@ interface AppState {
   deleteReadingSlot: (index: number) => void;
   setBrokenSlots: (slots: number[]) => void;
   updateProfile: (content: string) => void;
+  updateSixModulesOverview: (content: string) => void;
   
   // 数据管理
   exportData: () => any;
@@ -171,6 +173,7 @@ export const useStore = create<AppState>()((set, get) => {
     books: mergedInitialData.books as Book[],
     ownerMode: isOwnerMode(),
     profile: mergedInitialData.profile || null,
+    sixModulesOverview: mergedInitialData.sixModulesOverview || null,
   };
 
   // 辅助函数：无操作（线上只读）
@@ -358,6 +361,17 @@ export const useStore = create<AppState>()((set, get) => {
       });
     }),
 
+    updateSixModulesOverview: createAction((content: string) => {
+      set((state) => {
+        const newOverview: SixModulesOverview = {
+          id: state.sixModulesOverview?.id || 'six-modules-1',
+          content,
+          updatedAt: new Date().toISOString().split('T')[0],
+        };
+        return { sixModulesOverview: newOverview };
+      });
+    }),
+
     // 数据管理功能
     exportData: () => {
       const state = get();
@@ -380,6 +394,7 @@ export const useStore = create<AppState>()((set, get) => {
         readingSlots: state.readingSlots,
         brokenSlots: state.brokenSlots,
         profile: state.profile,
+        sixModulesOverview: state.sixModulesOverview,
       };
     },
 
@@ -417,6 +432,7 @@ export const useStore = create<AppState>()((set, get) => {
           readingSlots: data.readingSlots || [],
           brokenSlots: data.brokenSlots || [],
           profile: data.profile || null,
+          sixModulesOverview: data.sixModulesOverview || null,
         });
         // 导入后自动保存到 localStorage
         get().saveToLocalStorage();
@@ -464,6 +480,7 @@ export const useStore = create<AppState>()((set, get) => {
         readingSlots: state.readingSlots,
         brokenSlots: state.brokenSlots,
         profile: state.profile,
+        sixModulesOverview: state.sixModulesOverview,
       });
     },
     
@@ -488,6 +505,7 @@ export const useStore = create<AppState>()((set, get) => {
           readingSlots: storedData.readingSlots || staticData.readingSlots,
           brokenSlots: storedData.brokenSlots || staticData.brokenSlots,
           profile: storedData.profile || null,
+          sixModulesOverview: storedData.sixModulesOverview || null,
         });
         return true;
       }
@@ -514,6 +532,7 @@ export const useStore = create<AppState>()((set, get) => {
         readingSlots: state.readingSlots,
         brokenSlots: state.brokenSlots,
         profile: state.profile,
+        sixModulesOverview: state.sixModulesOverview,
       };
       return await saveToStaticFile(data);
     },

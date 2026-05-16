@@ -147,3 +147,9 @@ export interface Profile {
   content: string;  // King 的简介内容
   updatedAt: string; // YYYY-MM-DD
 }
+
+export interface SixModulesOverview {
+  id: string;
+  content: string;  // 六大模块概述
+  updatedAt: string; // YYYY-MM-DD
+}

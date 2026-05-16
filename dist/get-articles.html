@@ -1,0 +1,35 @@
+
+&lt;!DOCTYPE html&gt;
+&lt;html lang="zh-CN"&gt;
+&lt;head&gt;
+    &lt;meta charset="UTF-8"&gt;
+    &lt;title&gt;获取文章数据&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+    &lt;h1&gt;📝 获取文章数据&lt;/h1&gt;
+    &lt;button onclick="getData()"&gt;获取数据&lt;/button&gt;
+    &lt;div id="output"&gt;&lt;/div&gt;
+    
+    &lt;script&gt;
+        function getData() {
+            const data = localStorage.getItem('talent-showcase-local-data');
+            if (data) {
+                const parsed = JSON.parse(data);
+                const articles = parsed.articles || [];
+                
+                let html = `&lt;h2&gt;文章总数: ${articles.length}&lt;/h2&gt;`;
+                html += '&lt;ul&gt;';
+                
+                articles.forEach((article, index) =&gt; {
+                    html += `&lt;li&gt;[${index}] ID: ${article.id}&lt;/li&gt;`;
+                });
+                
+                html += '&lt;/ul&gt;';
+                html += '&lt;textarea style="width:100%;height:400px;"&gt;' + JSON.stringify(articles, null, 2) + '&lt;/textarea&gt;';
+                
+                document.getElementById('output').innerHTML = html;
+            }
+        }
+    &lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
