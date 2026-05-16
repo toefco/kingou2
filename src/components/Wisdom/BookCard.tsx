@@ -5,7 +5,7 @@ import { useStore } from '../../store';
 
 interface Props {
   book: Book;
-  onImageClick: (book: Book, type: 'cover' | 'data') => void;
+  onImageClick: (book: Book) => void;
   onEdit?: (book: Book) => void;
 }
 
@@ -124,12 +124,8 @@ export default function BookCard({ book, onImageClick, onEdit }: Props) {
         <div
           className="w-1/2 h-full flex-shrink-0 overflow-hidden cursor-pointer relative"
           onClick={(e) => {
-            if (book.coverLink) {
-              e.stopPropagation();
-              window.open(book.coverLink, '_blank');
-            } else {
-              onImageClick(book, 'cover');
-            }
+            e.stopPropagation();
+            onImageClick(book);
           }}
         >
           <img
@@ -166,12 +162,8 @@ export default function BookCard({ book, onImageClick, onEdit }: Props) {
         <div
           className="w-1/2 h-full flex-shrink-0 relative overflow-hidden cursor-pointer"
           onClick={(e) => {
-            if (book.dataLink) {
-              e.stopPropagation();
-              window.open(book.dataLink, '_blank');
-            } else if (book.dataUrl) {
-              onImageClick(book, 'data');
-            }
+            e.stopPropagation();
+            onImageClick(book);
           }}
         >
           {book.dataUrl ? (
@@ -217,8 +209,8 @@ export default function BookCard({ book, onImageClick, onEdit }: Props) {
           onChange={(e) => setThoughts(e.target.value)}
           onBlur={handleThoughtsSave}
           placeholder="写认知思考..."
-          rows={2}
-          className="w-full text-xs resize-none focus:outline-none rounded-xl px-3 py-2"
+          rows={6}
+          className="w-full text-sm resize-none focus:outline-none rounded-xl px-3 py-2"
           style={{
             background: 'rgba(255,255,255,0.03)',
             border: '1px solid rgba(255,255,255,0.07)',

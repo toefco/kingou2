@@ -118,13 +118,10 @@ export default function HobbiesList() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const finalImageUrl = form.mediaType === 'image' 
-      ? (form.imageMode === 'local' ? form.imageUrl : form.imageLink)
-      : form.imageUrl;
     const hobby: Hobby = {
       id: Date.now().toString(),
       ...form,
-      imageUrl: finalImageUrl,
+      imageUrl: form.imageLink || form.imageUrl,
       date: new Date().toISOString().split('T')[0],
     };
     addHobby(hobby);
@@ -223,148 +220,62 @@ export default function HobbiesList() {
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm text-paper/70 mb-2">
-                      {form.mediaType === 'image' ? '图片（可选）' : '视频URL（可选）'}
-                    </label>
-                    {form.mediaType === 'image' ? (
-                      <div className="space-y-3">
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            onClick={() => setForm({ ...form, imageMode: 'local' })}
-                            className={`flex-1 py-2 px-3 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 border ${
-                              form.imageMode === 'local' 
-                                ? 'bg-gold/20 text-gold border-gold/40' 
-                                : 'bg-ink/50 text-paper/60 border-gold/10 hover:text-paper'
-                            }`}
-                          >
-                            <Camera size={14} />
-                            本地图片
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setForm({ ...form, imageMode: 'url' })}
-                            className={`flex-1 py-2 px-3 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 border ${
-                              form.imageMode === 'url' 
-                                ? 'bg-gold/20 text-gold border-gold/40' 
-                                : 'bg-ink/50 text-paper/60 border-gold/10 hover:text-paper'
-                            }`}
-                          >
-                            <ExternalLink size={14} />
-                            网络链接
-                          </button>
-                        </div>
-                        
-                        {form.imageMode === 'local' ? (
-                          <div
-                            className="w-full border-2 border-dashed rounded-xl p-4 text-center cursor-pointer hover:border-pink-400/50 hover:bg-pink-500/5 transition-all"
-                            style={{ borderColor: 'rgba(236,72,153,0.3)' }}
-                            onClick={() => document.getElementById('hobby-image-upload')?.click()}
-                          >
-                            <input
-                              id="hobby-image-upload"
-                              type="file"
-                              accept="image/*"
-                              className="hidden"
-                              onChange={async (e) => {
-                                const file = e.target.files?.[0];
-                                if (file) {
-                                  const base64 = await fileToBase64(file);
-                                  setForm({ ...form, imageUrl: base64 });
-                                }
-                              }}
-                            />
-                            {form.imageUrl ? (
-                              <div className="relative">
-                                <img src={form.imageUrl} alt="" className="w-full h-20 object-cover rounded-lg" />
-                                <button
-                                  type="button"
-                                  className="absolute top-1 right-1 p-1 bg-black/50 rounded"
-                                  onClick={(e) => { e.stopPropagation(); setForm({ ...form, imageUrl: '' }); }}
-                                >
-                                  <X size={14} className="text-paper" />
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="flex flex-col items-center gap-2 text-paper/40">
-                                <Upload size={20} />
-                                <span className="text-sm">点击上传图片</span>
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="space-y-2">
-                            <input
-                              type="url"
-                              value={form.imageLink}
-                              onChange={(e) => setForm({ ...form, imageLink: e.target.value })}
-                              className="w-full rounded-xl px-4 py-2.5 text-paper focus:outline-none"
-                              style={{ background: 'rgba(236,72,153,0.07)', border: '1px solid rgba(236,72,153,0.2)' }}
-                              onFocus={e => (e.target.style.borderColor = 'rgba(236,72,153,0.5)')}
-                              onBlur={e => (e.target.style.borderColor = 'rgba(236,72,153,0.2)')}
-                              placeholder="https://..."
-                            />
-                            {form.imageLink && (
-                              <div className="relative rounded-lg overflow-hidden border border-gold/10">
-                                <img
-                                  src={form.imageLink}
-                                  alt=""
-                                  loading="lazy"
-                                  decoding="async"
-                                  className="w-full h-20 object-cover rounded-lg"
-                                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                />
-                              </div>
-                            )}
-                          </div>
-                        )}
+                    <label className="block text-sm text-paper/70 mb-2">图片URL（可选）</label>
+                    <input
+                      type="url"
+                      value={form.imageLink}
+                      onChange={(e) => setForm({ ...form, imageLink: e.target.value, imageMode: 'url' })}
+                      className="w-full rounded-xl px-4 py-2.5 text-paper focus:outline-none"
+                      style={{ background: 'rgba(236,72,153,0.07)', border: '1px solid rgba(236,72,153,0.2)' }}
+                      onFocus={e => (e.target.style.borderColor = 'rgba(236,72,153,0.5)')}
+                      onBlur={e => (e.target.style.borderColor = 'rgba(236,72,153,0.2)')}
+                      placeholder="输入图片URL链接"
+                    />
+                    {form.imageLink && (
+                      <div className="mt-2 relative rounded-lg overflow-hidden border border-gold/10">
+                        <img
+                          src={form.imageLink}
+                          alt=""
+                          loading="lazy"
+                          decoding="async"
+                          className="w-full h-20 object-cover rounded-lg"
+                          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                        />
                       </div>
-                    ) : (
+                    )}
+                  </div>
+                  {form.mediaType === 'video' && (
+                    <div className="mt-3 space-y-2">
+                      <label className="block text-sm text-paper/70">封面图URL（可选，自动识别YouTube）</label>
                       <input
                         type="url"
-                        value={form.imageUrl}
-                        onChange={(e) => setForm({ ...form, imageUrl: e.target.value })}
+                        value={form.coverUrl}
+                        onChange={(e) => setForm({ ...form, coverUrl: e.target.value })}
                         className="w-full rounded-xl px-4 py-2.5 text-paper focus:outline-none"
                         style={{ background: 'rgba(236,72,153,0.07)', border: '1px solid rgba(236,72,153,0.2)' }}
                         onFocus={e => (e.target.style.borderColor = 'rgba(236,72,153,0.5)')}
                         onBlur={e => (e.target.style.borderColor = 'rgba(236,72,153,0.2)')}
                         placeholder="https://..."
                       />
-                    )}
-                    {form.mediaType === 'video' && (
-                      <div className="mt-3 space-y-2">
-                        <label className="block text-sm text-paper/70">封面图URL（可选，自动识别YouTube）</label>
-                        <input
-                          type="url"
-                          value={form.coverUrl}
-                          onChange={(e) => setForm({ ...form, coverUrl: e.target.value })}
-                          className="w-full rounded-xl px-4 py-2.5 text-paper focus:outline-none"
-                          style={{ background: 'rgba(236,72,153,0.07)', border: '1px solid rgba(236,72,153,0.2)' }}
-                          onFocus={e => (e.target.style.borderColor = 'rgba(236,72,153,0.5)')}
-                          onBlur={e => (e.target.style.borderColor = 'rgba(236,72,153,0.2)')}
-                          placeholder="https://..."
-                        />
-                        {/* 预览封面：优先用户填写，其次自动提取YouTube缩略图 */}
-                        {(form.coverUrl || (form.imageUrl && getYoutubeThumbnail(form.imageUrl))) && (
-                          <div className="relative rounded-lg overflow-hidden border border-gold/10">
-                            <img
-                              src={form.coverUrl || getYoutubeThumbnail(form.imageUrl)!}
-                              alt=""
-                              loading="lazy"
-                              decoding="async"
-                              className="w-full aspect-video object-cover"
-                              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                            />
-                            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                              <div className="p-3 rounded-full bg-gold/30 border border-gold/50">
-                                <Play size={20} className="text-gold fill-gold" />
-                              </div>
+                      {(form.coverUrl || (form.imageUrl && getYoutubeThumbnail(form.imageUrl))) && (
+                        <div className="relative rounded-lg overflow-hidden border border-gold/10">
+                          <img
+                            src={form.coverUrl || getYoutubeThumbnail(form.imageUrl)!}
+                            alt=""
+                            loading="lazy"
+                            decoding="async"
+                            className="w-full aspect-video object-cover"
+                            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                            <div className="p-3 rounded-full bg-gold/30 border border-gold/50">
+                              <Play size={20} className="text-gold fill-gold" />
                             </div>
                           </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
               <div className="flex gap-3 pt-4">

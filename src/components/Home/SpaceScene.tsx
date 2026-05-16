@@ -139,44 +139,26 @@ const glowVertexShader = `
 `;
 
 const glowFragmentShader = `
-  uniform float uTime;
   varying vec3 vNormal;
   varying vec3 vView;
 
-  float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-  }
-
   void main() {
-    float pulse = 0.75 + 0.25 * sin(uTime * 0.35);
-    float noise = hash(gl_FragCoord.xy * 0.05 + uTime * 0.02);
-    noise = 0.85 + noise * 0.3;
-
-    vec3 warm = vec3(1.0, 0.5, 0.22) * pulse * 0.55 * noise;
-    vec3 cool = vec3(0.35, 0.6, 1.0) * pulse * 0.18 * noise;
-    float alpha = pulse * 0.5 * noise;
+    vec3 warm = vec3(1.0, 0.5, 0.22) * 0.55;
+    vec3 cool = vec3(0.35, 0.6, 1.0) * 0.18;
+    float alpha = 0.5;
 
     gl_FragColor = vec4(warm + cool, alpha);
   }
 `;
 
-// 第二层更外光晕
+// 第二层更外光晕（静态纯色无噪点）
 const outerGlowFragmentShader = `
-  uniform float uTime;
   varying vec3 vNormal;
   varying vec3 vView;
 
-  float hash(vec2 p) {
-    return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
-  }
-
   void main() {
-    float pulse = 0.6 + 0.4 * sin(uTime * 0.2 + 1.0);
-    float noise = hash(gl_FragCoord.xy * 0.03 + uTime * 0.015);
-    noise = 0.8 + noise * 0.4;
-
-    vec3 col = vec3(1.0, 0.42, 0.15) * pulse * 0.3 * noise;
-    float alpha = pulse * 0.25 * noise;
+    vec3 col = vec3(1.0, 0.42, 0.15) * 0.3;
+    float alpha = 0.25;
 
     gl_FragColor = vec4(col, alpha);
   }
@@ -281,8 +263,8 @@ function SceneContent() {
       {/* 主体 3D */}
       <NebulaCore />
 
-      {/* drei 星空 */}
-      <Stars radius={120} depth={60} count={6000} factor={4} saturation={0.5} fade speed={0.08} />
+      {/* drei 星空（静态无闪烁） */}
+      <Stars radius={120} depth={60} count={6000} factor={4} saturation={0.5} fade={0} />
 
       {/* 轨道控制 */}
       <OrbitControls

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { imageCDN } from '../../config/imageCDN';
 
 interface LoadingScreenProps {
   minDuration?: number;
@@ -58,7 +59,7 @@ export default function LoadingScreen({
       {/* 主内容：衡方碑隶书"靜"字 */}
       <div className="relative z-10 flex items-center justify-center">
         <img 
-          src="/loading-character.png" 
+          src={imageCDN.loadingCharacter || '/loading-character.png'} 
           alt="靜"
           className="w-[80vh] h-[80vh] object-contain animate-pulse"
           style={{

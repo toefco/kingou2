@@ -49,6 +49,16 @@ export interface Book {
   maxDailyMinutes?: number;
 }
 
+export interface RecommendedBook {
+  id: string;
+  title: string;
+  author?: string;
+  coverUrl?: string;
+  coverLink?: string;
+  description?: string;
+  coverMode?: 'local' | 'url';
+}
+
 export interface ReadingSlotObject {
   id: string;
   imageUrl: string;

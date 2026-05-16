@@ -9,28 +9,28 @@ const modules = [
   },
   {
     path: '/wisdom', label: '智', color: '#d4af37',
-    font: "'STSong', 'Songti SC', 'SimSun', serif",
-    fontWeight: 700, letterSpacing: '0.12em',
+    font: "'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif",
+    fontWeight: 900, letterSpacing: '0.08em',
   },
   {
     path: '/spirit', label: '神', color: '#a855f7',
-    font: "'STKaiti', 'Kaiti SC', 'KaiTi', cursive",
-    fontWeight: 600, letterSpacing: '0.1em',
+    font: "'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif",
+    fontWeight: 900, letterSpacing: '0.08em',
   },
   {
     path: '/skills', label: '技', color: '#3b82f6',
-    font: "'Helvetica Neue', 'Arial', 'PingFang SC', sans-serif",
-    fontWeight: 800, letterSpacing: '0.06em',
+    font: "'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif",
+    fontWeight: 900, letterSpacing: '0.08em',
   },
   {
     path: '/hobbies', label: '逸', color: '#ec4899',
-    font: "'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif",
-    fontWeight: 500, letterSpacing: '0.14em',
+    font: "'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif",
+    fontWeight: 900, letterSpacing: '0.08em',
   },
   {
     path: '/time', label: '时', color: '#10b981',
-    font: "'Noto Serif SC', 'STSong', 'SimSun', serif",
-    fontWeight: 600, letterSpacing: '0.1em',
+    font: "'Noto Sans SC', 'PingFang SC', 'Microsoft YaHei', sans-serif",
+    fontWeight: 900, letterSpacing: '0.08em',
   },
 ];
 

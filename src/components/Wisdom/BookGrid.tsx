@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Plus, X, Image, Trash2, Upload, Edit2, ExternalLink, Camera } from 'lucide-react';
 import { useStore } from '../../store';
 import { Book, ReadingSlotObject } from '../../types';
@@ -19,7 +19,6 @@ function fileToBase64(file: File): Promise<string> {
 export default function BookGrid() {
   const books = useStore((state) => state.books);
   const addBook = useStore((state) => state.addBook);
-  const updateBookThoughts = useStore((state) => state.updateBookThoughts);
   const updateBook = useStore((state) => state.updateBook);
   const readingSlots = useStore((state) => state.readingSlots);
   const brokenSlots = useStore((state) => state.brokenSlots);
@@ -30,8 +29,6 @@ export default function BookGrid() {
   const [isAdding, setIsAdding] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [selectedBook, setSelectedBook] = useState<Book | null>(null);
-  const [selectedType, setSelectedType] = useState<'cover' | 'data'>('cover');
-  const [thoughts, setThoughts] = useState('');
   const today = new Date().toISOString().split('T')[0];
   const [form, setForm] = useState({
     title: '',
@@ -66,11 +63,41 @@ export default function BookGrid() {
 
   const [selectedMonth, setSelectedMonth] = useState('all');
 
+  // 推荐书籍相关状态
+  const [recommendedBooks, setRecommendedBooks] = useState<Array<{
+    id: string;
+    title: string;
+    author: string;
+    category: string;
+    coverUrl: string;
+    description: string;
+  }>>([]);
+  const [isAddingRecommended, setIsAddingRecommended] = useState(false);
+  const [recommendedForm, setRecommendedForm] = useState({
+    title: '',
+    author: '',
+    category: '',
+    coverUrl: '',
+    description: ''
+  });
+  const [editingRecommendedId, setEditingRecommendedId] = useState<string | null>(null);
+
   const completedBooks = useMemo(() => {
     return books
       .filter((b) => b.status === 'completed')
       .sort((a, b) => (b.readDate || '').localeCompare(a.readDate || ''));
   }, [books]);
+
+  useEffect(() => {
+    if (selectedBook || selectedSlotSummary) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [selectedBook, selectedSlotSummary]);
 
   const monthOptions = useMemo(() => {
     const set = new Set<string>();
@@ -101,11 +128,23 @@ export default function BookGrid() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const finalCoverUrl = form.coverMode === 'local' ? form.coverUrl : form.coverLink;
+    const finalDataUrl = form.dataMode === 'local' ? form.dataUrl : form.dataLink;
+    
     const book: Book = {
       id: Date.now().toString(),
       author: '',
-      ...form,
+      title: form.title,
+      category: form.category,
+      coverUrl: finalCoverUrl,
+      dataUrl: finalDataUrl,
       status: 'completed',
+      readDate: form.readDate,
+      totalHours: form.totalHours,
+      totalMinutes: form.totalMinutes,
+      readingDays: form.readingDays,
+      maxDailyHours: form.maxDailyHours,
+      maxDailyMinutes: form.maxDailyMinutes,
     };
     addBook(book);
     setForm({ 
@@ -225,12 +264,11 @@ export default function BookGrid() {
 
   const handleZengHuanSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const finalImageUrl = zengHuanForm.imageMode === 'local' ? zengHuanForm.imageUrl : zengHuanForm.imageLink;
-    if (!finalImageUrl.trim()) return;
+    if (!zengHuanForm.imageLink.trim()) return;
     
     const newSlot: ReadingSlotObject = {
       id: `slot-${zengHuanSlotIndex}`,
-      imageUrl: finalImageUrl,
+      imageUrl: zengHuanForm.imageLink,
       totalYears: zengHuanForm.totalYears || undefined,
       totalHours: zengHuanForm.totalHours || undefined,
       totalMinutes: zengHuanForm.totalMinutes || undefined,
@@ -260,17 +298,8 @@ export default function BookGrid() {
     deleteReadingSlot(index);
   };
 
-  const openModal = (book: Book, type: 'cover' | 'data' = 'cover') => {
+  const openModal = (book: Book) => {
     setSelectedBook(book);
-    setSelectedType(type);
-    setThoughts(book.thoughts || '');
-  };
-
-  const handleThoughtsSave = () => {
-    if (selectedBook) {
-      updateBookThoughts(selectedBook.id, thoughts);
-      setSelectedBook({ ...selectedBook, thoughts });
-    }
   };
 
   const handleImageError = (index: number) => {
@@ -279,241 +308,214 @@ export default function BookGrid() {
     }
   };
 
+  // 推荐书籍相关函数
+  const handleAddRecommended = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newBook = {
+      id: Date.now().toString(),
+      title: recommendedForm.title,
+      author: recommendedForm.author,
+      category: recommendedForm.category,
+      coverUrl: recommendedForm.coverUrl,
+      description: recommendedForm.description
+    };
+    setRecommendedBooks([...recommendedBooks, newBook]);
+    setRecommendedForm({ title: '', author: '', category: '', coverUrl: '', description: '' });
+    setIsAddingRecommended(false);
+  };
+
+  const handleEditRecommended = (book: typeof recommendedBooks[0]) => {
+    setEditingRecommendedId(book.id);
+    setRecommendedForm({
+      title: book.title,
+      author: book.author,
+      category: book.category,
+      coverUrl: book.coverUrl,
+      description: book.description
+    });
+    setIsAddingRecommended(true);
+  };
+
+  const handleUpdateRecommended = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (editingRecommendedId) {
+      setRecommendedBooks(recommendedBooks.map(b => 
+        b.id === editingRecommendedId ? { ...b, ...recommendedForm } : b
+      ));
+    }
+    setRecommendedForm({ title: '', author: '', category: '', coverUrl: '', description: '' });
+    setIsAddingRecommended(false);
+    setEditingRecommendedId(null);
+  };
+
+  const handleDeleteRecommended = (id: string) => {
+    setRecommendedBooks(recommendedBooks.filter(b => b.id !== id));
+  };
+
   return (
     <div className="space-y-6">
-      <div className="bg-ink/70 border border-gold/10 rounded-2xl p-6">
+      {/* 推荐书籍展示区 */}
+      <div className="bg-gradient-to-br from-gold/10 via-ink/80 to-gold/5 rounded-2xl border border-gold/20 p-5">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-serif text-gold">🏯 慧府</h3>
+          <h3 className="text-lg font-serif text-gold flex items-center gap-2">
+            ✨ 书籍推荐
+          </h3>
+          <button 
+            onClick={() => {
+              setEditingRecommendedId(null);
+              setRecommendedForm({ title: '', author: '', coverUrl: '', description: '' });
+              setIsAddingRecommended(true);
+            }}
+            className="px-3 py-1.5 rounded-lg text-sm bg-gold/20 text-gold hover:bg-gold/30 transition-colors flex items-center gap-2"
+          >
+            <Plus size={16} />
+            神性加点
+          </button>
         </div>
         
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
-          {readingSlots.map((slot, i) => {
-            const url = slot && typeof slot === 'object' ? slot.imageUrl : (slot || null);
-            return (
-              <div key={i} className="aspect-[1/1] rounded-xl overflow-hidden border border-gold/10 hover:border-gold/30 hover:-translate-y-1 hover:shadow-lg hover:shadow-gold/5 transition-all duration-300">
-                {url ? (
-                  brokenSlots.includes(i) ? (
-                    <button
-                      className="flex flex-col items-center justify-center w-full h-full gap-1 text-cinnabar/40 hover:text-cinnabar hover:bg-cinnabar/5 transition-colors"
-                      onClick={() => openZengHuanModal(i)}
-                    >
-                      <Image size={16} />
-                      <span className="text-[10px]">重试</span>
-                    </button>
-                  ) : (
-                  <div className="relative group/slot w-full h-full cursor-pointer" onClick={() => setSelectedSlotSummary({ year: `汇总 ${i + 1}`, imageUrl: url })}>
-                    <div className="absolute top-1.5 left-1.5 flex gap-1 z-10 opacity-0 group-hover/slot:opacity-100 transition-opacity">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openZengHuanModal(i);
-                        }}
-                        className="p-1 rounded bg-ink/80 text-paper/40 hover:text-gold"
-                      >
-                        <Edit2 size={12} />
-                      </button>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteSlot(i);
+        {recommendedBooks.length === 0 ? (
+          <div className="text-center py-8 text-paper/30">
+            <p className="text-sm">暂无推荐书籍</p>
+            <p className="text-xs mt-1">点击上方按钮添加您喜欢的书籍推荐</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            {recommendedBooks.map((book) => (
+              <div 
+                key={book.id}
+                className="group relative bg-ink/60 rounded-xl border border-gold/15 hover:border-gold/30 transition-all duration-300 overflow-hidden hover:-translate-y-1 hover:shadow-lg hover:shadow-gold/10"
+              >
+                <div className="aspect-[3/4] overflow-hidden">
+                  {book.coverUrl ? (
+                    <img 
+                      src={book.coverUrl} 
+                      alt={book.title}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
                       }}
-                      className="absolute top-1.5 right-1.5 z-10 p-1 rounded bg-ink/80 text-paper/40 hover:text-cinnabar opacity-0 group-hover/slot:opacity-100 transition-opacity"
-                    >
-                      <Trash2 size={12} />
-                    </button>
-                    <img
-                      src={url}
-                      alt=""
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full h-full object-cover object-top"
-                      onError={() => handleImageError(i)}
                     />
-                  </div>
-                  )
-                ) : (
-                  <button
-                    className="flex flex-col items-center justify-center w-full h-full gap-1 text-paper/30 hover:text-gold hover:bg-gold/5 transition-colors"
-                    onClick={() => openZengHuanModal(i)}
-                  >
-                    <Plus size={16} />
-                    <span className="text-[10px]">增寰</span>
-                  </button>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {isZengHuanOpen && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-ink border border-gold/30 rounded-xl w-full max-w-md p-6">
-            <div className="flex items-center mb-6">
-              <h3 className="text-xl font-serif text-gold text-center flex-1">增寰</h3>
-              <button onClick={() => setIsZengHuanOpen(false)} className="text-paper/60 hover:text-paper">
-                <X size={20} />
-              </button>
-            </div>
-            <form onSubmit={handleZengHuanSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm text-paper/70 mb-2">图片</label>
-                <div className="space-y-3">
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setZengHuanForm({ ...zengHuanForm, imageMode: 'local' })}
-                      className={`flex-1 py-2 px-3 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 ${
-                        zengHuanForm.imageMode === 'local' 
-                          ? 'bg-gold/20 text-gold border border-gold/50' 
-                          : 'bg-ink/50 text-paper/60 hover:text-paper'
-                      }`}
-                    >
-                      <Camera size={14} />
-                      本地图片
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setZengHuanForm({ ...zengHuanForm, imageMode: 'url' })}
-                      className={`flex-1 py-2 px-3 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 ${
-                        zengHuanForm.imageMode === 'url' 
-                          ? 'bg-gold/20 text-gold border border-gold/50' 
-                          : 'bg-ink/50 text-paper/60 hover:text-paper'
-                      }`}
-                    >
-                      <ExternalLink size={14} />
-                      网络链接
-                    </button>
-                  </div>
-                  
-                  {zengHuanForm.imageMode === 'local' ? (
-                    <div
-                      className="w-full border-2 border-dashed border-gold/30 rounded-lg p-4 text-center cursor-pointer hover:border-gold/50 hover:bg-gold/5 transition-all"
-                      onClick={() => document.getElementById('zenghuan-cover-upload')?.click()}
-                    >
-                      <input
-                        id="zenghuan-cover-upload"
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const base64 = await fileToBase64(file);
-                            setZengHuanForm({ ...zengHuanForm, imageUrl: base64 });
-                          }
-                        }}
-                      />
-                      {zengHuanForm.imageUrl ? (
-                        <div className="relative">
-                          <img src={zengHuanForm.imageUrl} alt="" className="w-full h-24 object-cover rounded" />
-                          <button
-                            type="button"
-                            className="absolute top-1 right-1 p-1 bg-black/50 rounded"
-                            onClick={(e) => { e.stopPropagation(); setZengHuanForm({ ...zengHuanForm, imageUrl: '' }); }}
-                          >
-                            <X size={14} className="text-paper" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center gap-2 text-paper/40">
-                          <Upload size={24} />
-                          <span className="text-sm">点击上传图片</span>
-                        </div>
-                      )}
-                    </div>
                   ) : (
-                    <div className="space-y-2">
-                      <input
-                        type="url"
-                        value={zengHuanForm.imageLink}
-                        onChange={(e) => setZengHuanForm({ ...zengHuanForm, imageLink: e.target.value })}
-                        placeholder="输入图片URL链接"
-                        className="w-full bg-ink/50 border border-gold/30 rounded-lg px-3 py-2 text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold"
-                      />
-                      {zengHuanForm.imageLink && (
-                        <div className="relative">
-                          <img 
-                            src={zengHuanForm.imageLink} 
-                            alt="" 
-                            className="w-full h-24 object-cover rounded" 
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                            }}
-                          />
-                        </div>
-                      )}
+                    <div className="w-full h-full bg-gold/10 flex items-center justify-center">
+                      <span className="text-gold/40 text-4xl">📚</span>
                     </div>
                   )}
                 </div>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm text-paper/70 mb-2">年份</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={zengHuanForm.totalYears || ''}
-                    onChange={(e) => setZengHuanForm({ ...zengHuanForm, totalYears: Number(e.target.value) || 0 })}
-                    className="w-full bg-ink/50 border border-gold/30 rounded-lg px-3 py-2 text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold"
-                  />
+                <div className="p-3">
+                  {book.description && (
+                    <p className="text-sm text-paper/80 line-clamp-3">{book.description}</p>
+                  )}
                 </div>
-                <div>
-                  <label className="block text-sm text-paper/70 mb-2">读过多少本</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={zengHuanForm.totalBooks || ''}
-                    onChange={(e) => setZengHuanForm({ ...zengHuanForm, totalBooks: Number(e.target.value) || 0 })}
-                    className="w-full bg-ink/50 border border-gold/30 rounded-lg px-3 py-2 text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold"
-                  />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-sm text-paper/70 mb-2">阅读总计</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="小时"
-                      value={zengHuanForm.totalHours || ''}
-                      onChange={(e) => setZengHuanForm({ ...zengHuanForm, totalHours: Number(e.target.value) || 0 })}
-                      className="w-full bg-ink/50 border border-gold/30 rounded-lg px-3 py-2 text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold"
-                    />
-                    <input
-                      type="number"
-                      min="0"
-                      max="59"
-                      placeholder="分钟"
-                      value={zengHuanForm.totalMinutes || ''}
-                      onChange={(e) => setZengHuanForm({ ...zengHuanForm, totalMinutes: Number(e.target.value) || 0 })}
-                      className="w-full bg-ink/50 border border-gold/30 rounded-lg px-3 py-2 text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold"
-                    />
-                  </div>
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-sm text-paper/70 mb-2">阅读天数</label>
-                  <input
-                    type="number"
-                    min="0"
-                    value={zengHuanForm.readingDays || ''}
-                    onChange={(e) => setZengHuanForm({ ...zengHuanForm, readingDays: Number(e.target.value) || 0 })}
-                    className="w-full bg-ink/50 border border-gold/30 rounded-lg px-3 py-2 text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold"
-                  />
+                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button
+                    onClick={() => handleEditRecommended(book)}
+                    className="p-1.5 rounded-lg bg-ink/80 text-paper/60 hover:text-gold transition-colors"
+                  >
+                    <Edit2 size={14} />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteRecommended(book.id)}
+                    className="p-1.5 rounded-lg bg-ink/80 text-paper/60 hover:text-cinnabar transition-colors"
+                  >
+                    <Trash2 size={14} />
+                  </button>
                 </div>
               </div>
-              
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 添加/编辑推荐书籍弹窗 */}
+      {isAddingRecommended && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-ink border border-gold/30 rounded-xl w-full max-w-md p-6">
+            <div className="flex items-center mb-6">
+              <h3 className="text-xl font-serif text-gold text-center flex-1">
+                {editingRecommendedId ? '编辑推荐书籍' : '添加推荐书籍'}
+              </h3>
+              <button onClick={() => {
+                setIsAddingRecommended(false);
+                setEditingRecommendedId(null);
+                setRecommendedForm({ title: '', author: '', coverUrl: '', description: '' });
+              }} className="text-paper/60 hover:text-paper">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={editingRecommendedId ? handleUpdateRecommended : handleAddRecommended} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm text-paper/70 mb-2">书籍名称 *</label>
+                  <input
+                    type="text"
+                    value={recommendedForm.title}
+                    onChange={(e) => setRecommendedForm({ ...recommendedForm, title: e.target.value })}
+                    placeholder="输入书籍名称"
+                    required
+                    className="w-full bg-ink/50 border border-gold/30 rounded-lg px-4 py-2 text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-paper/70 mb-2">作者</label>
+                  <input
+                    type="text"
+                    value={recommendedForm.author}
+                    onChange={(e) => setRecommendedForm({ ...recommendedForm, author: e.target.value })}
+                    placeholder="输入作者名称（可选）"
+                    className="w-full bg-ink/50 border border-gold/30 rounded-lg px-4 py-2 text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm text-paper/70 mb-2">书籍分类</label>
+                <select
+                  value={recommendedForm.category}
+                  onChange={(e) => setRecommendedForm({ ...recommendedForm, category: e.target.value })}
+                  className="w-full bg-ink/50 border border-gold/30 rounded-lg px-3 py-2 text-paper focus:outline-none focus:border-gold"
+                >
+                  <option value="">选择分类（可选）</option>
+                  <option value="哲学">哲学</option>
+                  <option value="文学">文学</option>
+                  <option value="历史">历史</option>
+                  <option value="心理">心理</option>
+                  <option value="商业">商业</option>
+                  <option value="科技">科技</option>
+                  <option value="艺术">艺术</option>
+                  <option value="社科">社科</option>
+                  <option value="生活">生活</option>
+                  <option value="其他">其他</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm text-paper/70 mb-2">封面图片</label>
+                <input
+                  type="url"
+                  value={recommendedForm.coverUrl}
+                  onChange={(e) => setRecommendedForm({ ...recommendedForm, coverUrl: e.target.value })}
+                  placeholder="输入封面图片URL链接"
+                  className="w-full bg-ink/50 border border-gold/30 rounded-lg px-3 py-2 text-sm text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-paper/70 mb-2">推荐理由</label>
+                <textarea
+                  value={recommendedForm.description}
+                  onChange={(e) => setRecommendedForm({ ...recommendedForm, description: e.target.value })}
+                  placeholder="写下推荐这本书的理由（可选）"
+                  rows={3}
+                  className="w-full bg-ink/50 border border-gold/30 rounded-lg px-4 py-2 text-sm text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold resize-none"
+                />
+              </div>
               <div className="flex gap-3 pt-4">
-                <button type="button" onClick={() => setIsZengHuanOpen(false)} className="flex-1 btn-secondary">
+                <button type="button" onClick={() => {
+                  setIsAddingRecommended(false);
+                  setEditingRecommendedId(null);
+                  setRecommendedForm({ title: '', author: '', category: '', coverUrl: '', description: '' });
+                }} className="flex-1 btn-secondary">
                   取消
                 </button>
-                <button 
-                  type="submit" 
-                  disabled={!((zengHuanForm.imageMode === 'local' ? zengHuanForm.imageUrl : zengHuanForm.imageLink).trim())} 
-                  className="flex-1 btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
-                >
-                  确定
+                <button type="submit" disabled={!recommendedForm.title} className="flex-1 btn-primary disabled:opacity-40 disabled:cursor-not-allowed">
+                  {editingRecommendedId ? '保存修改' : '添加'}
                 </button>
               </div>
             </form>
@@ -595,79 +597,23 @@ export default function BookGrid() {
               </div>
               <div>
                 <label className="block text-sm text-paper/70 mb-2">封面图片</label>
-                <div
-                  className="w-full border-2 border-dashed border-gold/30 rounded-lg p-4 text-center cursor-pointer hover:border-gold/50 hover:bg-gold/5 transition-all"
-                  onClick={() => document.getElementById('cover-upload')?.click()}
-                >
-                  <input
-                    id="cover-upload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        const base64 = await fileToBase64(file);
-                        setForm({ ...form, coverUrl: base64 });
-                      }
-                    }}
-                  />
-                  {form.coverUrl ? (
-                    <div className="relative">
-                      <img src={form.coverUrl} alt="" className="w-full h-24 object-cover rounded" />
-                      <button
-                        type="button"
-                        className="absolute top-1 right-1 p-1 bg-black/50 rounded"
-                        onClick={(e) => { e.stopPropagation(); setForm({ ...form, coverUrl: '' }); }}
-                      >
-                        <X size={14} className="text-paper" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-2 text-paper/40">
-                      <Upload size={24} />
-                      <span className="text-sm">点击上传封面图片</span>
-                    </div>
-                  )}
-                </div>
+                <input
+                  type="url"
+                  value={form.coverLink}
+                  onChange={(e) => setForm({ ...form, coverLink: e.target.value, coverMode: 'url' })}
+                  placeholder="输入封面图片URL链接"
+                  className="w-full bg-ink/50 border border-gold/30 rounded-lg px-3 py-2 text-sm text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold"
+                />
               </div>
               <div>
                 <label className="block text-sm text-paper/70 mb-2">数据图片</label>
-                <div
-                  className="w-full border-2 border-dashed border-gold/30 rounded-lg p-4 text-center cursor-pointer hover:border-gold/50 hover:bg-gold/5 transition-all"
-                  onClick={() => document.getElementById('data-upload')?.click()}
-                >
-                  <input
-                    id="data-upload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const file = e.target.files?.[0];
-                      if (file) {
-                        const base64 = await fileToBase64(file);
-                        setForm({ ...form, dataUrl: base64 });
-                      }
-                    }}
-                  />
-                  {form.dataUrl ? (
-                    <div className="relative">
-                      <img src={form.dataUrl} alt="" className="w-full h-24 object-cover rounded" />
-                      <button
-                        type="button"
-                        className="absolute top-1 right-1 p-1 bg-black/50 rounded"
-                        onClick={(e) => { e.stopPropagation(); setForm({ ...form, dataUrl: '' }); }}
-                      >
-                        <X size={14} className="text-paper" />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-2 text-paper/40">
-                      <Upload size={24} />
-                      <span className="text-sm">点击上传数据图片（可选）</span>
-                    </div>
-                  )}
-                </div>
+                <input
+                  type="url"
+                  value={form.dataLink}
+                  onChange={(e) => setForm({ ...form, dataLink: e.target.value, dataMode: 'url' })}
+                  placeholder="输入数据图片URL链接（可选）"
+                  className="w-full bg-ink/50 border border-gold/30 rounded-lg px-3 py-2 text-sm text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold"
+                />
               </div>
               <div>
                 <label className="block text-sm text-paper/70 mb-2">读完日期</label>
@@ -794,185 +740,23 @@ export default function BookGrid() {
               </div>
               <div>
                 <label className="block text-sm text-paper/70 mb-2">封面图片</label>
-                <div className="space-y-3">
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, coverMode: 'local' })}
-                      className={`flex-1 py-2 px-3 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 ${
-                        form.coverMode === 'local' 
-                          ? 'bg-gold/20 text-gold border border-gold/50' 
-                          : 'bg-ink/50 text-paper/60 hover:text-paper'
-                      }`}
-                    >
-                      <Camera size={14} />
-                      本地图片
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, coverMode: 'url' })}
-                      className={`flex-1 py-2 px-3 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 ${
-                        form.coverMode === 'url' 
-                          ? 'bg-gold/20 text-gold border border-gold/50' 
-                          : 'bg-ink/50 text-paper/60 hover:text-paper'
-                      }`}
-                    >
-                      <ExternalLink size={14} />
-                      网络链接
-                    </button>
-                  </div>
-                  
-                  {form.coverMode === 'local' ? (
-                    <div
-                      className="w-full border-2 border-dashed border-gold/30 rounded-lg p-4 text-center cursor-pointer hover:border-gold/50 hover:bg-gold/5 transition-all"
-                      onClick={() => document.getElementById('edit-cover-upload')?.click()}
-                    >
-                      <input
-                        id="edit-cover-upload"
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const base64 = await fileToBase64(file);
-                            setForm({ ...form, coverUrl: base64 });
-                          }
-                        }}
-                      />
-                      {form.coverUrl ? (
-                        <div className="relative">
-                          <img src={form.coverUrl} alt="" className="w-full h-24 object-cover rounded" />
-                          <button
-                            type="button"
-                            className="absolute top-1 right-1 p-1 bg-black/50 rounded"
-                            onClick={(e) => { e.stopPropagation(); setForm({ ...form, coverUrl: '' }); }}
-                          >
-                            <X size={14} className="text-paper" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center gap-2 text-paper/40">
-                          <Upload size={24} />
-                          <span className="text-sm">点击上传封面图片</span>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <input
-                        type="url"
-                        value={form.coverLink}
-                        onChange={(e) => setForm({ ...form, coverLink: e.target.value })}
-                        placeholder="输入图片URL链接"
-                        className="w-full bg-ink/50 border border-gold/30 rounded-lg px-3 py-2 text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold"
-                      />
-                      {form.coverLink && (
-                        <div className="relative">
-                          <img 
-                            src={form.coverLink} 
-                            alt="" 
-                            className="w-full h-24 object-cover rounded" 
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                            }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <input
+                  type="url"
+                  value={form.coverLink}
+                  onChange={(e) => setForm({ ...form, coverLink: e.target.value, coverMode: 'url' })}
+                  placeholder="输入封面图片URL链接"
+                  className="w-full bg-ink/50 border border-gold/30 rounded-lg px-3 py-2 text-sm text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold"
+                />
               </div>
               <div>
                 <label className="block text-sm text-paper/70 mb-2">数据图片</label>
-                <div className="space-y-3">
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, dataMode: 'local' })}
-                      className={`flex-1 py-2 px-3 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 ${
-                        form.dataMode === 'local' 
-                          ? 'bg-gold/20 text-gold border border-gold/50' 
-                          : 'bg-ink/50 text-paper/60 hover:text-paper'
-                      }`}
-                    >
-                      <Camera size={14} />
-                      本地图片
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setForm({ ...form, dataMode: 'url' })}
-                      className={`flex-1 py-2 px-3 rounded-lg text-sm transition-colors flex items-center justify-center gap-2 ${
-                        form.dataMode === 'url' 
-                          ? 'bg-gold/20 text-gold border border-gold/50' 
-                          : 'bg-ink/50 text-paper/60 hover:text-paper'
-                      }`}
-                    >
-                      <ExternalLink size={14} />
-                      网络链接
-                    </button>
-                  </div>
-                  
-                  {form.dataMode === 'local' ? (
-                    <div
-                      className="w-full border-2 border-dashed border-gold/30 rounded-lg p-4 text-center cursor-pointer hover:border-gold/50 hover:bg-gold/5 transition-all"
-                      onClick={() => document.getElementById('edit-data-upload')?.click()}
-                    >
-                      <input
-                        id="edit-data-upload"
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={async (e) => {
-                          const file = e.target.files?.[0];
-                          if (file) {
-                            const base64 = await fileToBase64(file);
-                            setForm({ ...form, dataUrl: base64 });
-                          }
-                        }}
-                      />
-                      {form.dataUrl ? (
-                        <div className="relative">
-                          <img src={form.dataUrl} alt="" className="w-full h-24 object-cover rounded" />
-                          <button
-                            type="button"
-                            className="absolute top-1 right-1 p-1 bg-black/50 rounded"
-                            onClick={(e) => { e.stopPropagation(); setForm({ ...form, dataUrl: '' }); }}
-                          >
-                            <X size={14} className="text-paper" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center gap-2 text-paper/40">
-                          <Upload size={24} />
-                          <span className="text-sm">点击上传数据图片（可选）</span>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      <input
-                        type="url"
-                        value={form.dataLink}
-                        onChange={(e) => setForm({ ...form, dataLink: e.target.value })}
-                        placeholder="输入数据图片URL链接（可选）"
-                        className="w-full bg-ink/50 border border-gold/30 rounded-lg px-3 py-2 text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold"
-                      />
-                      {form.dataLink && (
-                        <div className="relative">
-                          <img 
-                            src={form.dataLink} 
-                            alt="" 
-                            className="w-full h-24 object-cover rounded" 
-                            onError={(e) => {
-                              (e.target as HTMLImageElement).style.display = 'none';
-                            }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <input
+                  type="url"
+                  value={form.dataLink}
+                  onChange={(e) => setForm({ ...form, dataLink: e.target.value, dataMode: 'url' })}
+                  placeholder="输入数据图片URL链接（可选）"
+                  className="w-full bg-ink/50 border border-gold/30 rounded-lg px-3 py-2 text-sm text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold"
+                />
               </div>
               <div>
                 <label className="block text-sm text-paper/70 mb-2">读完日期</label>
@@ -980,7 +764,7 @@ export default function BookGrid() {
                   type="date"
                   value={form.readDate}
                   onChange={(e) => setForm({ ...form, readDate: e.target.value })}
-                  className="w-full bg-ink/50 border border-gold/30 rounded-lg px-3 py-2 text-paper focus:outline-none focus:border-gold"
+                  className="w-full bg-ink/50 border border-gold/30 rounded-lg px-4 py-2 text-paper focus:outline-none focus:border-gold"
                 />
               </div>
               <div className="grid grid-cols-3 gap-2">
@@ -1087,7 +871,7 @@ export default function BookGrid() {
           onClick={() => setSelectedBook(null)}
         >
           <div
-            className="relative w-full max-w-lg my-8"
+            className="relative w-full max-w-4xl my-8"
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -1096,28 +880,155 @@ export default function BookGrid() {
             >
               <X size={24} />
             </button>
-            <img
-              src={selectedType === 'cover' ? selectedBook.coverUrl : selectedBook.dataUrl}
-              alt=""
-              loading="lazy"
-              decoding="async"
-              className="w-full rounded-t-xl"
-            />
-            <div className="p-4 bg-ink border-t border-white/10 rounded-b-xl">
-              <textarea
-                value={thoughts}
-                onChange={(e) => setThoughts(e.target.value)}
-                onBlur={handleThoughtsSave}
-                placeholder="写下对这本书的认知思考..."
-                rows={3}
-                className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-paper/80 placeholder:text-paper/30 focus:outline-none focus:border-gold/40 resize-none"
-              />
+            <div 
+              className="flex gap-4"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) {
+                  setSelectedBook(null);
+                }
+              }}
+            >
+              <div className="flex-1 overflow-auto max-h-[80vh]" onWheel={(e) => { e.stopPropagation(); }}>
+                <img
+                  src={selectedBook.coverUrl}
+                  alt="封面"
+                  loading="lazy"
+                  decoding="async"
+                  className="w-full rounded-xl"
+                  style={{ 
+                    height: 'auto',
+                    maxHeight: 'none',
+                    objectFit: 'contain',
+                    cursor: 'default'
+                  }}
+                />
+              </div>
+              {selectedBook.dataUrl && (
+                <div className="flex-1 overflow-auto max-h-[80vh]" onWheel={(e) => { e.stopPropagation(); }}>
+                  <img
+                    src={selectedBook.dataUrl}
+                    alt="数据"
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full rounded-xl"
+                    style={{ 
+                      height: 'auto',
+                      maxHeight: 'none',
+                      objectFit: 'contain',
+                      cursor: 'default'
+                    }}
+                  />
+                </div>
+              )}
             </div>
           </div>
         </div>
       )}
 
-
+      {isZengHuanOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-ink border border-gold/30 rounded-xl w-full max-w-md p-6">
+            <div className="flex items-center mb-6">
+              <h3 className="text-xl font-serif text-gold text-center flex-1">增寰</h3>
+              <button onClick={() => setIsZengHuanOpen(false)} className="text-paper/60 hover:text-paper">
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleZengHuanSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm text-paper/70 mb-2">图片URL</label>
+                <input
+                  type="url"
+                  value={zengHuanForm.imageLink}
+                  onChange={(e) => setZengHuanForm({ ...zengHuanForm, imageLink: e.target.value, imageMode: 'url' })}
+                  placeholder="输入图片URL链接"
+                  className="w-full bg-ink/50 border border-gold/30 rounded-lg px-3 py-2 text-sm text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold"
+                />
+                {zengHuanForm.imageLink && (
+                  <div className="mt-2 relative">
+                    <img 
+                      src={zengHuanForm.imageLink} 
+                      alt="" 
+                      className="w-full h-24 object-cover rounded" 
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm text-paper/70 mb-2">年份</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={zengHuanForm.totalYears || ''}
+                    onChange={(e) => setZengHuanForm({ ...zengHuanForm, totalYears: Number(e.target.value) || 0 })}
+                    className="w-full bg-ink/50 border border-gold/30 rounded-lg px-3 py-2 text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-paper/70 mb-2">读过多少本</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={zengHuanForm.totalBooks || ''}
+                    onChange={(e) => setZengHuanForm({ ...zengHuanForm, totalBooks: Number(e.target.value) || 0 })}
+                    className="w-full bg-ink/50 border border-gold/30 rounded-lg px-3 py-2 text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-sm text-paper/70 mb-2">阅读总计</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      min="0"
+                      placeholder="小时"
+                      value={zengHuanForm.totalHours || ''}
+                      onChange={(e) => setZengHuanForm({ ...zengHuanForm, totalHours: Number(e.target.value) || 0 })}
+                      className="w-full bg-ink/50 border border-gold/30 rounded-lg px-3 py-2 text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      placeholder="分钟"
+                      value={zengHuanForm.totalMinutes || ''}
+                      onChange={(e) => setZengHuanForm({ ...zengHuanForm, totalMinutes: Number(e.target.value) || 0 })}
+                      className="w-full bg-ink/50 border border-gold/30 rounded-lg px-3 py-2 text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold"
+                    />
+                  </div>
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-sm text-paper/70 mb-2">阅读天数</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={zengHuanForm.readingDays || ''}
+                    onChange={(e) => setZengHuanForm({ ...zengHuanForm, readingDays: Number(e.target.value) || 0 })}
+                    className="w-full bg-ink/50 border border-gold/30 rounded-lg px-3 py-2 text-paper placeholder:text-paper/30 focus:outline-none focus:border-gold"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex gap-3 pt-4">
+                <button type="button" onClick={() => setIsZengHuanOpen(false)} className="flex-1 btn-secondary">
+                  取消
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={!((zengHuanForm.imageMode === 'local' ? zengHuanForm.imageUrl : zengHuanForm.imageLink).trim())} 
+                  className="flex-1 btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  确定
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {groupedBooks.length === 0 ? (
         <div className="text-center py-20 text-paper/20">
@@ -1142,6 +1053,72 @@ export default function BookGrid() {
           </div>
         ))
       )}
+
+      <div className="bg-ink/70 border border-gold/10 rounded-2xl p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-serif text-gold">🏯 慧府</h3>
+        </div>
+        
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+          {readingSlots.map((slot, i) => {
+            const url = slot && typeof slot === 'object' ? slot.imageUrl : (slot || null);
+            return (
+              <div key={i} className="aspect-[1/1] rounded-xl overflow-hidden border border-gold/10 hover:border-gold/30 hover:-translate-y-1 hover:shadow-lg hover:shadow-gold/5 transition-all duration-300">
+                {url ? (
+                  brokenSlots.includes(i) ? (
+                    <button
+                      className="flex flex-col items-center justify-center w-full h-full gap-1 text-cinnabar/40 hover:text-cinnabar hover:bg-cinnabar/5 transition-colors"
+                      onClick={() => openZengHuanModal(i)}
+                    >
+                      <Image size={16} />
+                      <span className="text-[10px]">重试</span>
+                    </button>
+                  ) : (
+                  <div className="relative group/slot w-full h-full cursor-pointer" onClick={() => setSelectedSlotSummary({ year: `汇总 ${i + 1}`, imageUrl: url })}>
+                    <div className="absolute top-1.5 left-1.5 flex gap-1 z-10 opacity-0 group-hover/slot:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openZengHuanModal(i);
+                        }}
+                        className="p-1 rounded bg-ink/80 text-paper/40 hover:text-gold"
+                      >
+                        <Edit2 size={12} />
+                      </button>
+                    </div>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleDeleteSlot(i);
+                      }}
+                      className="absolute top-1.5 right-1.5 z-10 p-1 rounded bg-ink/80 text-paper/40 hover:text-cinnabar opacity-0 group-hover/slot:opacity-100 transition-opacity"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                    <img
+                      src={url}
+                      alt=""
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-full object-cover object-top"
+                      onError={() => handleImageError(i)}
+                    />
+                  </div>
+                  )
+                ) : (
+                  <button
+                    className="flex flex-col items-center justify-center w-full h-full gap-1 text-paper/30 hover:text-gold hover:bg-gold/5 transition-colors"
+                    onClick={() => openZengHuanModal(i)}
+                  >
+                    <Plus size={16} />
+                    <span className="text-[10px]">增寰</span>
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

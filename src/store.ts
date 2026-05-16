@@ -152,7 +152,7 @@ export const useStore = create<AppState>()((set, get) => {
     
     keys.forEach(key => {
       if (Array.isArray(staticD[key])) {
-        result[key] = storedD[key] && Array.isArray(storedD[key]) 
+        result[key] = storedD[key] && Array.isArray(storedD[key]) && storedD[key].length > 0
           ? storedD[key] 
           : staticD[key];
       } else {

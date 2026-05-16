@@ -1,4 +1,5 @@
 import { Talent, FitnessTest, Workout, Book, Article, Skill, Hobby, Schedule, Happiness } from '../types';
+import { imageCDN } from '../config/imageCDN';
 
 export const mockTalents: Talent[] = [
   { id: '1', name: '体魄', score: 85, icon: 'BicepsFlexed', description: '强健的体魄是人生的基石' },
@@ -29,8 +30,8 @@ export const mockWorkouts: Workout[] = [
 ];
 
 export const mockBooks: Book[] = [
-  { id: '1', title: '反倦怠能量站', author: '刀熊', category: '心理', coverUrl: '/book-cover.jpg', dataUrl: '/book-data.jpg', status: 'completed', readDate: '2024-03-15' },
-  { id: '7', title: '基督山伯爵', author: '大仲马', category: '文学', coverUrl: '/monte-cristo-cover.jpg', dataUrl: '/monte-cristo-data.png', status: 'completed', readDate: '2025-05-11' },
+  { id: '1', title: '反倦怠能量站', author: '刀熊', category: '心理', coverUrl: imageCDN.bookCover || '/book-cover.jpg', dataUrl: imageCDN.bookData || '/book-data.jpg', status: 'completed', readDate: '2024-03-15' },
+  { id: '7', title: '基督山伯爵', author: '大仲马', category: '文学', coverUrl: imageCDN.monteCristoCover || '/monte-cristo-cover.jpg', dataUrl: imageCDN.monteCristoData || '/monte-cristo-data.png', status: 'completed', readDate: '2025-05-11' },
   { id: '2', title: '活着', author: '余华', category: '文学', coverUrl: 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=300&h=400&fit=crop', status: 'completed', readDate: '2024-02-20' },
   { id: '3', title: '人类简史', author: '尤瓦尔·赫拉利', category: '历史', coverUrl: 'https://images.unsplash.com/photo-1589998059171-988d887df646?w=300&h=400&fit=crop', status: 'reading' },
   { id: '4', title: '思考快与慢', author: '丹尼尔·卡尼曼', category: '心理', coverUrl: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=300&h=400&fit=crop', status: 'planned' },

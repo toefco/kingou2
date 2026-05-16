@@ -16,6 +16,7 @@ export default function TestList() {
   const addFitnessTest = useStore((state) => state.addFitnessTest);
   const deleteFitnessTest = useStore((state) => state.deleteFitnessTest);
   const [isAdding, setIsAdding] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [form, setForm] = useState({
     type: 'balance' as FitnessTest['type'],
     value: 0,
@@ -131,35 +132,42 @@ export default function TestList() {
       {/* 历史记录列表 */}
       {fitnessTests.length > 0 && (
         <div>
-          <div className="text-sm text-paper/50 mb-3 pt-3" style={{ borderTop: '1px solid rgba(239,68,68,0.08)' }}>
-            历史记录 · {fitnessTests.length} 条
+          <div 
+            className="text-sm text-paper/50 mb-3 pt-3 cursor-pointer hover:text-paper/70 transition-colors flex items-center gap-2" 
+            style={{ borderTop: '1px solid rgba(239,68,68,0.08)' }}
+            onClick={() => setShowHistory(!showHistory)}
+          >
+            <span className={`transition-transform ${showHistory ? 'rotate-90' : ''}`}>▶</span>
+            <span>历史记录 · {fitnessTests.length} 条</span>
           </div>
-          <div className="space-y-2">
-            {[...fitnessTests]
-              .sort((a, b) => b.date.localeCompare(a.date))
-              .map((test) => {
-                const info = testTypes.find((t) => t.value === test.type);
-                return (
-                  <div key={test.id} className="flex items-center justify-between px-3 py-2 rounded-lg text-sm group" style={{
-                    background: 'rgba(239,68,68,0.03)', border: '1px solid rgba(239,68,68,0.08)'
-                  }}>
-                    <span className="text-paper/60">{info?.label || test.type}</span>
-                    <div className="flex items-center gap-3">
-                      <span className="font-serif text-sm" style={{ color: '#ef4444' }}>
-                        {test.value}{test.unit}
-                      </span>
-                      <span className="text-xs text-paper/30">{test.date}</span>
-                      <button
-                        onClick={() => deleteFitnessTest(test.id)}
-                        className="text-paper/30 hover:text-cinnabar transition-colors opacity-0 group-hover:opacity-100"
-                      >
-                        <Trash2 size={14} />
-                      </button>
+          {showHistory && (
+            <div className="space-y-2">
+              {[...fitnessTests]
+                .sort((a, b) => b.date.localeCompare(a.date))
+                .map((test) => {
+                  const info = testTypes.find((t) => t.value === test.type);
+                  return (
+                    <div key={test.id} className="flex items-center justify-between px-3 py-2 rounded-lg text-sm group" style={{
+                      background: 'rgba(239,68,68,0.03)', border: '1px solid rgba(239,68,68,0.08)'
+                    }}>
+                      <span className="text-paper/60">{info?.label || test.type}</span>
+                      <div className="flex items-center gap-3">
+                        <span className="font-serif text-sm" style={{ color: '#ef4444' }}>
+                          {test.value}{test.unit}
+                        </span>
+                        <span className="text-xs text-paper/30">{test.date}</span>
+                        <button
+                          onClick={() => deleteFitnessTest(test.id)}
+                          className="text-paper/30 hover:text-cinnabar transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-          </div>
+                  );
+                })}
+            </div>
+          )}
         </div>
       )}
     </div>
